@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>小花战记 · florr 小游戏</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1f7a3d; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #game { display: block; position: absolute; inset: 0; touch-action: none; cursor: crosshair; }
+
+  /* HUD */
+  #hud { position: absolute; inset: 0; pointer-events: none; }
+  .panel { position: absolute; color: #fff; text-shadow: 0 2px 3px rgba(0,0,0,.4); }
+
+  #topleft { top: 14px; left: 14px; width: 230px; }
+  #pname { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .bar { width: 100%; height: 18px; border-radius: 10px; background: rgba(0,0,0,.35); overflow: hidden; margin-bottom: 6px; position: relative; border: 2px solid rgba(255,255,255,.25); }
+  .bar > i { position: absolute; left: 0; top: 0; bottom: 0; transition: width .12s linear; }
+  #hpfill { background: linear-gradient(#7bed7b, #3ec73e); }
+  #xpfill { background: linear-gradient(#ffe27a, #ffc83d); }
+  .bar > span { position: absolute; inset: 0; text-align: center; font-size: 12px; line-height: 18px; font-weight: 700; }
+  #xpbar { height: 12px; } #xpbar > span { line-height: 12px; font-size: 10px; }
+
+  #topright { top: 14px; right: 14px; text-align: right; }
+  #score { font-size: 16px; font-weight: 700; }
+  #mini { margin-top: 8px; width: 150px; height: 150px; background: rgba(0,0,0,.3); border: 2px solid rgba(255,255,255,.3); border-radius: 8px; }
+
+  /* 底部花瓣槽 + 背包按钮 */
+  #dock { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; pointer-events: auto; }
+  #slots { display: flex; gap: 7px; }
+  .slot { width: 46px; height: 46px; border-radius: 11px; background: rgba(0,0,0,.3); border: 3px solid rgba(255,255,255,.32); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+  .slot .dot { width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 -3px 5px rgba(0,0,0,.25); }
+  .slot.empty .dot { background: rgba(255,255,255,.10); }
+  .slot .nm { position: absolute; bottom: -16px; left: -4px; right: -4px; text-align: center; font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+  .slot.sel { border-color: #ffe27a; box-shadow: 0 0 10px #ffe27a; }
+  #bagbtn { width: 56px; height: 56px; border-radius: 14px; background: #6b4f2a; border: 3px solid #ffe27a; color: #fff; font-size: 26px; cursor: pointer; position: relative; }
+  #bagbtn .badge { position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 12px; background: #e53935; color: #fff; font-size: 12px; line-height: 22px; font-weight: 700; display: none; }
+  #bagbtn .badge.show { display: block; }
+
+  #hint { position: absolute; bottom: 86px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 14px; background: rgba(0,0,0,.4); padding: 6px 14px; border-radius: 20px; opacity: 0; transition: opacity .3s; }
+  #hint.show { opacity: 1; }
+
+  /* 覆盖层 */
+  .overlay { position: absolute; inset: 0; background: rgba(0,0,0,.55); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center; pointer-events: auto; }
+  .overlay.hidden { display: none; }
+  .overlay h1 { font-size: 42px; margin-bottom: 8px; text-shadow: 0 4px 8px rgba(0,0,0,.5); }
+  .overlay p { font-size: 17px; line-height: 1.9; margin-bottom: 6px; opacity: .95; }
+  .overlay .keys { background: rgba(255,255,255,.12); border-radius: 14px; padding: 16px 26px; margin: 16px 0; font-size: 16px; line-height: 2; }
+  .btn { margin-top: 14px; padding: 14px 44px; font-size: 22px; font-weight: 700; color: #1f7a3d; background: #ffe27a; border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 6px 0 #d9a93a; transition: transform .08s; }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d9a93a; }
+  .small { font-size: 14px; opacity: .8; }
+
+  /* 背包 / 商店 / 熔炉 / 图鉴面板 */
+  #inv { position: absolute; inset: 0; background: rgba(0,0,0,.66); display: none; flex-direction: column; align-items: center; justify-content: flex-start; pointer-events: auto; color: #fff; padding: 18px; overflow-y: auto; }
+  #inv.show { display: flex; }
+  #invhead { display: flex; gap: 16px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
+  #invtabs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .invtab { padding: 8px 16px; border-radius: 20px; border: 2px solid rgba(255,255,255,.3); background: rgba(255,255,255,.08); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .invtab.active { background: #ffe27a; color: #1f7a3d; border-color: #ffe27a; }
+  #invgold { font-size: 19px; font-weight: 700; color: #ffe27a; }
+  #inv .tip { font-size: 13px; opacity: .82; margin-bottom: 12px; text-align: center; max-width: 760px; }
+  #tabbody { width: 100%; max-width: 940px; }
+  #equiprow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; }
+  #equiprow .slot { width: 52px; height: 52px; }
+  .sechead { font-size: 16px; font-weight: 700; margin: 6px 0 10px; opacity: .9; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, 268px); gap: 10px; justify-content: center; }
+  .empty-tip { grid-column: 1/-1; text-align: center; opacity: .6; font-size: 14px; padding: 20px; }
+  /* 通用花瓣卡片（含操作按钮） */
+  .pcard { background: rgba(255,255,255,.10); border: 2px solid rgba(255,255,255,.2); border-radius: 12px; padding: 10px; }
+  .pcard .ptop { display: flex; gap: 10px; align-items: center; }
+  .pcard .cdot { width: 34px; height: 34px; border-radius: 50%; flex: 0 0 auto; box-shadow: inset 0 -4px 6px rgba(0,0,0,.25); }
+  .pcard .pinfo { font-size: 12px; line-height: 1.4; }
+  .pcard .pinfo b { font-size: 14px; }
+  .pcard .cnt { color: #ffe27a; font-weight: 700; margin-left: 4px; }
+  .pcard .cstat { opacity: .82; }
+  .pcard .cfeat { color: #9be7ff; }
+  .pcard .pacts { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .pcard .pacts button { flex: 1; min-width: 56px; padding: 7px 4px; border-radius: 8px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; background: #3a7a4a; color: #fff; }
+  .pcard .pacts button:disabled { opacity: .32; cursor: default; }
+  .pcard .pacts button.b-gold { background: #caa53a; }
+  .pcard .pacts button.b-sell { background: #c0683a; }
+  .pcard .pacts button.b-forge { background: #8a4fbf; }
+  /* 图鉴卡片 */
+  .card { display: flex; gap: 10px; background: rgba(255,255,255,.10); border: 2px solid rgba(255,255,255,.18); border-radius: 12px; padding: 10px; align-items: center; }
+  .card .cdot { width: 36px; height: 36px; border-radius: 50%; flex: 0 0 auto; box-shadow: inset 0 -4px 6px rgba(0,0,0,.25); }
+  .card .cinfo { font-size: 12px; line-height: 1.4; }
+  .card .cinfo b { font-size: 14px; }
+  .card .cstat { opacity: .82; }
+  .card .cfeat { color: #9be7ff; }
+  .dexsub { font-size: 13px; opacity: .85; margin: 14px 0 8px; font-weight: 700; }
+  #invclose { margin-top: 18px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="topleft" class="panel">
+    <div id="pname">小花 · Lv.1</div>
+    <div class="bar"><i id="hpfill"></i><span id="hptext">200 / 200</span></div>
+    <div class="bar" id="xpbar"><i id="xpfill"></i><span id="xptext">0 / 100</span></div>
+  </div>
+  <div id="topright" class="panel">
+    <div id="biome" style="font-size:18px;font-weight:700;margin-bottom:2px">🌸 花园</div>
+    <div id="score">得分 0</div>
+    <div id="hudgold" style="font-size:15px;font-weight:700;color:#ffe27a">🪙 0</div>
+    <canvas id="mini" width="150" height="150"></canvas>
+  </div>
+  <div id="dock">
+    <button id="bagbtn">🎒<span class="badge" id="bagbadge">0</span></button>
+    <div id="slots"></div>
+  </div>
+  <div id="hint"></div>
+</div>
+
+<div id="start" class="overlay">
+  <h1>🌸 小花战记 🌸</h1>
+  <p>操控一朵小花，用花瓣打败虫子，收集更厉害的花瓣！</p>
+  <div class="keys">
+    🖱️ <b>移动鼠标</b> → 小花跟着走（离得越远跑得越快）<br />
+    👈 <b>按住左键</b> → 花瓣张开攻击（伤害高）<br />
+    👉 <b>按住右键</b> → 花瓣收拢防御（更安全）<br />
+    🌼 走到掉落花瓣上 → 自动收进背包 / 空格子<br />
+    🎒 <b>点背包</b>（按 B）→ 背包/商店/熔炉/图鉴四个页面<br />
+    💎 花瓣分 <b>10 阶</b>（普通→…→独特），5 个同种同阶可<b>合成</b>高一阶<br />
+    🪙 <b>商店</b>买卖花瓣赚金币 · 🔥 <b>熔炉</b>分解花瓣换经验 · 📖 <b>图鉴</b>看生物属性掉率<br />
+    🌀 <b>走进传送门</b>去更深地图：沙漠Lv4 · 海洋Lv8 · 丛林Lv14 · 地狱Lv22（生物也有阶级，越深越强、奖励越高）
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+    <button class="btn" id="continuebtn" style="display:none">继续存档</button>
+    <button class="btn" id="startbtn">开始游戏</button>
+  </div>
+  <p class="small">进度会自动存档，关掉网页下次打开点"继续存档"就能接着玩！被打败也不掉花瓣。</p>
+</div>
+
+<div id="dead" class="overlay hidden">
+  <h1>😵 小花累倒了</h1>
+  <p id="deadinfo">你打败了 0 只虫子，得到 0 分！</p>
+  <button class="btn" id="respawnbtn">满血复活</button>
+</div>
+
+<!-- 背包 / 商店 / 熔炉 / 图鉴 -->
+<div id="inv">
+  <div id="invhead">
+    <div id="invtabs">
+      <button class="invtab active" data-tab="bag">🎒 背包</button>
+      <button class="invtab" data-tab="stat">⚔️ 属性</button>
+      <button class="invtab" data-tab="shop">🪙 商店</button>
+      <button class="invtab" data-tab="forge">🔥 熔炉</button>
+      <button class="invtab" data-tab="dex">📖 图鉴</button>
+    </div>
+    <div id="invgold">🪙 0</div>
+  </div>
+  <p class="tip" id="invtip"></p>
+  <div id="tabbody"></div>
+  <button class="btn" id="invclose">继续游戏</button>
+</div>
+
+<script>
+"use strict";
+//============================================================
+// 小花战记 —— 单文件 florr.io 风格小游戏（本地单机）
+//============================================================
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const mini = document.getElementById('mini');
+const mctx = mini.getContext('2d');
+
+const WORLD = { w: 3200, h: 3200 };
+const CELL = 96;
+
+// ---------- 花瓣种类（id, 名字, 颜色, 伤害, 血量, 装填秒, 特性, 介绍）----------
+const PETALS = [
+  { id:'basic',  name:'基础',   color:'#f4f4f4', dmg:10, hp:10, reload:1.2, desc:'最均衡的花瓣，攻防都不错，新手最爱。' },
+  { id:'fast',   name:'迅捷',   color:'#9be7ff', dmg:8,  hp:6,  reload:0.5, desc:'破碎后很快长回来，几乎不缺席战斗。' },
+  { id:'light',  name:'光轮',   color:'#eaffff', dmg:5,  hp:4,  reload:0.3, spin:1.6, desc:'又轻又快地高速旋转，伤害低但打得很勤。' },
+  { id:'salt',   name:'盐粒',   color:'#dfe6ee', dmg:14, hp:18, reload:1.2, desc:'结实的咸盐粒，攻防均衡偏肉。' },
+  { id:'heavy',  name:'重击',   color:'#ffcf6b', dmg:24, hp:24, reload:2.0, desc:'又重又硬，一下很疼，就是长得慢。' },
+  { id:'rose',   name:'玫瑰',   color:'#ff8fbf', dmg:5,  hp:12, reload:1.5, heal:16, desc:'定时治疗小花的奶妈花瓣。' },
+  { id:'leaf',   name:'叶子',   color:'#7ed957', dmg:6,  hp:14, reload:1.4, regen:6, desc:'装着它就会慢慢回血，细水长流。' },
+  { id:'cactus', name:'仙人掌', color:'#3fbf6f', dmg:8,  hp:30, reload:1.6, maxhp:60, desc:'装着它血量上限更高，更耐打。' },
+  { id:'iris',   name:'鸢尾',   color:'#b06bff', dmg:6,  hp:8,  reload:1.5, poison:{dps:14,dur:3}, desc:'命中后让虫子中毒，持续掉血。' },
+  { id:'sting',  name:'尖刺',   color:'#c9a0ff', dmg:38, hp:4,  reload:1.6, desc:'超级锋利！伤害极高，但自己很脆。' },
+  { id:'wing',   name:'天翼',   color:'#ffe27a', dmg:30, hp:26, reload:1.0, glow:true, desc:'又强又快又结实的高级花瓣，会发光。' },
+  { id:'flame',  name:'烈焰',   color:'#ff6a3d', dmg:20, hp:14, reload:1.1, poison:{dps:22,dur:2}, glow:true, desc:'灼烧虫子，命中后剧烈持续掉血。' },
+  // 五行属性花瓣
+  { id:'ewood',  name:'雷木',   color:'#8be34a', dmg:14, hp:10, reload:1.3, elem:'wood',  stun:0.7,            desc:'木系·命中触发闪电，短暂【眩晕】敌人。' },
+  { id:'efire',  name:'炎心',   color:'#ff7a2b', dmg:16, hp:10, reload:1.2, elem:'fire',  burn:{dps:30,dur:3}, glow:true, desc:'火系·点燃敌人，持续【灼烧】掉血。' },
+  { id:'ewater', name:'寒冰',   color:'#46c2ff', dmg:12, hp:12, reload:1.2, elem:'water', slow:1.5,            desc:'水系·命中【冰冻】敌人，移动变慢。' },
+  { id:'emetal', name:'锋金',   color:'#ffd24a', dmg:30, hp:8,  reload:1.5, elem:'metal', crit:2.0,  glow:true, desc:'金系·有几率【暴击】造成双倍穿刺伤害。' },
+  { id:'eearth', name:'毒土',   color:'#b07a3d', dmg:10, hp:14, reload:1.4, elem:'earth', poison:{dps:26,dur:4}, desc:'土系·释放毒雾，长时间【中毒】减血。' },
+];
+function petalById(id){ return PETALS.find(p=>p.id===id) || PETALS[0]; }
+function featText(t){
+  const f=[];
+  if(t.elem) f.push(elemName(t.elem)+'系');
+  if(t.heal) f.push('定时治疗');
+  if(t.regen) f.push('持续回血');
+  if(t.maxhp) f.push('+'+t.maxhp+'血量上限');
+  if(t.poison) f.push('中毒');
+  if(t.burn) f.push('灼烧');
+  if(t.stun) f.push('眩晕');
+  if(t.slow) f.push('减速');
+  if(t.crit) f.push('暴击');
+  if(t.spin) f.push('转得快');
+  if(t.glow) f.push('发光');
+  return f.join(' · ');
+}
+
+// ---------- 阶级（稀有度）：10 阶，花瓣与生物共用。颜色按彩虹渐变，越高阶越往暖色/亮色 ----------
+const RARITY = [
+  { name:'普通', color:'#e23b3b', mult:1.0  }, // 红
+  { name:'不凡', color:'#ef8a2b', mult:1.5  }, // 橙
+  { name:'稀有', color:'#f2c400', mult:2.2  }, // 黄
+  { name:'史诗', color:'#8bd24a', mult:3.2  }, // 黄绿
+  { name:'传说', color:'#34c24a', mult:4.6  }, // 绿
+  { name:'神话', color:'#1fc7b6', mult:6.6  }, // 青
+  { name:'超神', color:'#2e8be0', mult:9.5  }, // 蓝
+  { name:'究极', color:'#5a5ad8', mult:13.5 }, // 靛
+  { name:'永恒', color:'#9b4ddd', mult:19   }, // 紫
+  { name:'独特', color:'#e03ad6', mult:27   }, // 品红
+];
+const MAXRAR = RARITY.length-1;
+// ---------- 五行元素与状态效果 ----------
+const ELEM = {
+  none:  { name:'物理', color:'#dddddd' },
+  wood:  { name:'木',  color:'#7ed957' },  // 闪电 → 眩晕
+  fire:  { name:'火',  color:'#ff6a3d' },  // 烈火 → 地面燃烧
+  water: { name:'水',  color:'#46c2ff' },  // 冰冻 → 减速
+  metal: { name:'金',  color:'#ffd24a' },  // 穿刺 → 暴击/穿透花瓣
+  earth: { name:'土',  color:'#b07a3d' },  // 毒雾 → 中毒
+};
+function elemName(e){ return (ELEM[e]||ELEM.none).name; }
+// 生物按阶级缩放：血量/伤害/经验/得分（整体大幅加强：血量更厚、伤害更高）
+function mobHpMult(r){ return 2.6 * (1 + r*0.78); }
+function mobDmgMult(r){ return 1.7 * (1 + r*0.5); }
+function mobXpMult(r){ return 1 + r*0.95; }
+function mobScoreMult(r){ return 1 + r*0.85; }
+// 某地图刷出的生物阶级（以地图基准阶级为中心，少数更高）
+function rollMobRarity(map){
+  const base=map.rarBase||0; const roll=Math.random();
+  let r=base;
+  if(roll>0.97) r=base+3; else if(roll>0.88) r=base+2; else if(roll>0.64) r=base+1;
+  return clamp(r,0,MAXRAR);
+}
+// 掉落花瓣的阶级：不会超过生物自身阶级（多数等于，少数更低）
+function rollDropRarity(crar){
+  const roll=Math.random(); let r=crar;
+  if(roll<0.30) r=crar-1; else if(roll<0.42) r=crar-2;
+  return clamp(Math.round(r),0,crar);
+}
+function pkey(id,rar){ return id+'#'+rar; }
+function rmul(p){ return RARITY[p.rar].mult; }
+function pDmg(p){ return petalById(p.id).dmg * rmul(p); }
+function pMaxHp(p){ return Math.max(1, Math.round(petalById(p.id).hp * rmul(p))); }
+function pReload(p){ return Math.max(0.15, petalById(p.id).reload * (1 - p.rar*0.06)); }
+function pHeal(p){ const b=petalById(p.id).heal; return b? b*rmul(p) : 0; }
+function pRegen(p){ const b=petalById(p.id).regen; return b? b*rmul(p) : 0; }
+function pBonusHp(p){ const b=petalById(p.id).maxhp; return b? Math.round(b*rmul(p)) : 0; }
+function pPoison(p){ const b=petalById(p.id).poison; return b? {dps:b.dps*rmul(p), dur:b.dur} : null; }
+function petalLabel(p){ return RARITY[p.rar].name+petalById(p.id).name; }
+// 经济：币值 / 卖价 / 买价 / 分解经验
+function petalCoin(id){ const t=petalById(id); return Math.round((t.dmg+t.hp)/2 + 4); }
+function sellValue(id,rar){ return Math.max(1, Math.round(petalCoin(id) * RARITY[rar].mult * 0.6)); }
+function buyPrice(id,rar){ return Math.round(sellValue(id,rar) * 3.2); }
+function decomposeXP(id,rar){ return Math.max(2, Math.round(petalCoin(id) * RARITY[rar].mult * 1.2)); }
+
+// ---------- 敌人（shape: round/oval/diamond/spiky/blob/seg；tier 决定掉落档次）----------
+const MOBS = {
+  // 花园 tier1
+  ant:        { name:'小蚂蚁',   color:'#7a4a2b', accent:'#3a2410', r:16, hp:40,  dmg:8,  speed:55,  xp:12,  score:1,  ai:'wander', drop:0.32, shape:'round', tier:1 },
+  bee:        { name:'蜜蜂',     color:'#f5c518', accent:'#3a2a10', r:18, hp:70,  dmg:14, speed:80,  xp:22,  score:2,  ai:'chase',  drop:0.42, shape:'oval',  tier:1 },
+  ladybug:    { name:'瓢虫',     color:'#e53935', accent:'#1a1a1a', r:24, hp:150, dmg:18, speed:44,  xp:50,  score:4,  ai:'tank',   drop:0.6,  shape:'round', tier:1 },
+  caterpillar:{ name:'毛毛虫',   color:'#8bc34a', accent:'#5a8a2a', r:20, hp:110, dmg:12, speed:34,  xp:34,  score:3,  ai:'wander', drop:0.5,  shape:'seg',   tier:1 },
+  spider:     { name:'蜘蛛',     color:'#4a4a55', accent:'#cfcfe0', r:19, hp:85,  dmg:20, speed:98,  xp:40,  score:4,  ai:'chase',  drop:0.5,  shape:'spiky', tier:1 },
+  // 沙漠 tier2
+  beetle:     { name:'甲虫',     color:'#6b4a2a', accent:'#2a1c10', r:26, hp:260, dmg:26, speed:48,  xp:80,  score:6,  ai:'tank',   drop:0.62, shape:'oval',  tier:2 },
+  scorpion:   { name:'蝎子',     color:'#caa45a', accent:'#6a5020', r:22, hp:180, dmg:34, speed:92,  xp:90,  score:7,  ai:'chase',  drop:0.55, shape:'diamond',tier:2 },
+  sandworm:   { name:'沙虫',     color:'#d9c089', accent:'#9a8050', r:30, hp:420, dmg:30, speed:34,  xp:140, score:10, ai:'tank',   drop:0.75, shape:'seg',   tier:2 },
+  locust:     { name:'蝗虫',     color:'#9caa5a', accent:'#4a5a2a', r:18, hp:120, dmg:18, speed:108, xp:60,  score:5,  ai:'chase',  drop:0.5,  shape:'oval',  tier:2 },
+  // 海洋 tier2~3
+  jellyfish:  { name:'水母',     color:'#ff9ecb', accent:'#d05a90', r:24, hp:160, dmg:22, speed:40,  xp:75,  score:6,  ai:'wander', drop:0.6,  shape:'blob',  tier:2, glow:true },
+  crab:       { name:'螃蟹',     color:'#ff7043', accent:'#7a2e15', r:24, hp:240, dmg:26, speed:62,  xp:95,  score:7,  ai:'chase',  drop:0.6,  shape:'oval',  tier:2 },
+  starfish:   { name:'海星',     color:'#ffa733', accent:'#a86010', r:26, hp:300, dmg:20, speed:28,  xp:110, score:8,  ai:'tank',   drop:0.7,  shape:'diamond',tier:2 },
+  puffer:     { name:'河豚',     color:'#8fd6e0', accent:'#3a7a85', r:22, hp:210, dmg:32, speed:66,  xp:105, score:8,  ai:'chase',  drop:0.62, shape:'spiky', tier:3 },
+  // 丛林 tier3
+  mantis:     { name:'螳螂',     color:'#6abf4b', accent:'#2a6a1a', r:24, hp:300, dmg:40, speed:112, xp:160, score:10, ai:'chase',  drop:0.62, shape:'diamond',tier:3 },
+  wasp:       { name:'黄蜂',     color:'#ff8c1a', accent:'#3a2a10', r:20, hp:200, dmg:34, speed:126, xp:130, score:9,  ai:'chase',  drop:0.58, shape:'oval',  tier:3 },
+  firefly:    { name:'萤火虫',   color:'#fff07a', accent:'#bfae20', r:14, hp:90,  dmg:16, speed:96,  xp:70,  score:5,  ai:'wander', drop:0.5,  shape:'round', tier:3, glow:true },
+  hornet:     { name:'大黄蜂',   color:'#d98a2b', accent:'#3a2a10', r:26, hp:380, dmg:44, speed:100, xp:200, score:12, ai:'chase',  drop:0.7,  shape:'oval',  tier:3 },
+  // 地狱 tier4
+  helbeetle:  { name:'地狱甲虫', color:'#8a1f1f', accent:'#2a0a0a', r:30, hp:650, dmg:50, speed:56,  xp:320, score:18, ai:'tank',   drop:0.85, shape:'oval',  tier:4, glow:true },
+  centipede:  { name:'蜈蚣',     color:'#5a2a4a', accent:'#1a0a18', r:22, hp:420, dmg:40, speed:122, xp:260, score:15, ai:'chase',  drop:0.78, shape:'seg',   tier:4, glow:true },
+  demon:      { name:'噬花魔',   color:'#b3261e', accent:'#3a0a08', r:28, hp:560, dmg:60, speed:96,  xp:400, score:22, ai:'chase',  drop:0.9,  shape:'spiky', tier:4, glow:true },
+  // 金字塔 tier3
+  scarab:     { name:'圣甲虫',   color:'#2fae9a', accent:'#1a6a5a', r:24, hp:340, dmg:30, speed:60,  xp:140, score:9,  ai:'tank',   drop:0.64, shape:'oval',  tier:3 },
+  viper:      { name:'沙蛇',     color:'#cbb06a', accent:'#8a7030', r:22, hp:300, dmg:38, speed:120, xp:150, score:10, ai:'chase',  drop:0.62, shape:'seg',   tier:3 },
+  mummy:      { name:'缠绕虫',   color:'#e6dcc0', accent:'#b0a070', r:26, hp:460, dmg:28, speed:40,  xp:160, score:10, ai:'tank',   drop:0.66, shape:'round', tier:3 },
+  // 下水道 tier3
+  rat:        { name:'老鼠',     color:'#9a9a9a', accent:'#5a5a5a', r:22, hp:280, dmg:30, speed:96,  xp:120, score:8,  ai:'chase',  drop:0.6,  shape:'oval',  tier:3 },
+  roach:      { name:'蟑螂',     color:'#5a3a1a', accent:'#2a1a08', r:20, hp:240, dmg:26, speed:130, xp:110, score:8,  ai:'chase',  drop:0.58, shape:'oval',  tier:3 },
+  slug:       { name:'鼻涕虫',   color:'#7eb86a', accent:'#4a7a3a', r:26, hp:520, dmg:24, speed:26,  xp:150, score:10, ai:'tank',   drop:0.7,  shape:'blob',  tier:3, glow:true },
+};
+// 生物攻击的五行元素（决定命中玩家时附加什么状态）
+const MOB_ELEM = {
+  jellyfish:'wood', locust:'wood', mummy:'wood',
+  demon:'fire', helbeetle:'fire', firefly:'fire',
+  puffer:'water', crab:'water', slug:'water',
+  hornet:'metal', mantis:'metal', spider:'metal',
+  scorpion:'earth', centipede:'earth', viper:'earth', roach:'earth',
+};
+for(const k in MOB_ELEM) MOBS[k].elem = MOB_ELEM[k];
+// 掉落档次：怪的 tier → 花瓣权重表
+const LOOT = {
+  1: [['basic',4],['fast',3],['light',2],['salt',2],['leaf',1]],
+  2: [['salt',3],['heavy',3],['rose',2],['leaf',2],['cactus',2],['iris',1]],
+  3: [['heavy',2],['cactus',2],['iris',3],['sting',2],['wing',1],['ewater',1.6],['ewood',1.6],['eearth',1.2]],
+  4: [['sting',3],['wing',3],['flame',2],['iris',1],['efire',2],['emetal',2],['eearth',1.5],['ewater',1.2]],
+};
+
+// 外观装饰：让生物长相更多样（wings 翅膀 / legs 多足 / antenna 触角 / horn 尖角 / claws 钳子）
+const DECO = {
+  ant:'antenna', bee:'wings', spider:'legs', caterpillar:'antenna', ladybug:'antenna',
+  beetle:'horn', scorpion:'claws', locust:'wings', sandworm:'antenna',
+  crab:'claws', wasp:'wings', hornet:'wings', firefly:'wings',
+  mantis:'claws', centipede:'legs', helbeetle:'horn', demon:'horn',
+  scarab:'horn', viper:'antenna', mummy:'antenna', rat:'antenna', roach:'legs',
+};
+for(const k in DECO) MOBS[k].deco = DECO[k];
+
+// 远程攻击：在范围内定时朝玩家吐射弹（射弹会被花瓣挡掉）
+const RANGED = {
+  hornet:   { range:540, cd:1.5, pdmg:24, pspeed:330, pr:7, pcolor:'#ffd27a' },
+  puffer:   { range:430, cd:2.2, pdmg:22, pspeed:300, pr:6, pcolor:'#d6f3fa', burst:3 },
+  jellyfish:{ range:380, cd:2.0, pdmg:18, pspeed:240, pr:8, pcolor:'#ffd0e6' },
+  demon:    { range:600, cd:1.3, pdmg:32, pspeed:340, pr:9, pcolor:'#ff7a3d', glow:true },
+  scorpion: { range:320, cd:2.3, pdmg:20, pspeed:300, pr:6, pcolor:'#e8d28a' },
+};
+for(const k in RANGED){ MOBS[k].atk='ranged'; MOBS[k].atkData=RANGED[k]; }
+// 冲刺攻击：靠近后猛地扑向玩家
+const CHARGER = {
+  mantis: { range:380, cd:2.6, dashSpeed:520, dashTime:0.32 },
+  spider: { range:340, cd:3.0, dashSpeed:460, dashTime:0.30 },
+  locust: { range:300, cd:2.2, dashSpeed:480, dashTime:0.28 },
+};
+for(const k in CHARGER){ MOBS[k].atk='charge'; MOBS[k].atkData=CHARGER[k]; }
+
+// ---------- 地图 / 生物群系 + 传送门 ----------
+const MAPS = {
+  garden: { name:'花园', icon:'🌸', w:6400, h:6400, bg:'#2a9d4f', grid:'rgba(255,255,255,.06)', cap:70,
+    types:[['ant',5],['bee',3],['ladybug',1.5],['caterpillar',2],['spider',1.5]],
+    portals:[
+      {x:1000,y:1000, to:'desert', color:'#e0b84a', label:'沙漠 🏜️'},
+      {x:5400,y:1000, to:'ocean',  color:'#3aa0e0', label:'海洋 🌊'},
+      {x:3200,y:5500, to:'jungle', color:'#4bbf5a', label:'丛林 🌴'},
+    ] },
+  desert: { name:'沙漠', icon:'🏜️', w:5600, h:5600, bg:'#cdb46a', grid:'rgba(80,50,10,.10)', cap:55,
+    types:[['beetle',2],['scorpion',3],['sandworm',1],['locust',3]],
+    portals:[ {x:800,y:800, to:'garden', color:'#7ed957', label:'花园 🌸'}, {x:4800,y:4800, to:'pyramid', color:'#b89a52', label:'金字塔 🔺'} ] },
+  ocean:  { name:'海洋', icon:'🌊', w:5600, h:5600, bg:'#2f6fae', grid:'rgba(255,255,255,.07)', cap:60,
+    types:[['jellyfish',3],['crab',2],['starfish',1.5],['puffer',2]],
+    portals:[ {x:800,y:800, to:'garden', color:'#7ed957', label:'花园 🌸'}, {x:4800,y:4800, to:'sewers', color:'#3a5a3a', label:'下水道 🕳️'} ] },
+  pyramid:{ name:'金字塔', icon:'🔺', w:5200, h:5200, bg:'#b89a52', grid:'rgba(60,40,10,.12)', cap:55,
+    types:[['scarab',3],['viper',2],['mummy',2]],
+    portals:[ {x:800,y:800, to:'desert', color:'#e0b84a', label:'沙漠 🏜️'} ] },
+  sewers: { name:'下水道', icon:'🕳️', w:5200, h:5200, bg:'#2b3a2b', grid:'rgba(150,190,130,.06)', cap:55,
+    types:[['rat',3],['roach',3],['slug',2]],
+    portals:[ {x:800,y:800, to:'ocean', color:'#3aa0e0', label:'海洋 🌊'} ] },
+  jungle: { name:'丛林', icon:'🌴', w:6000, h:6000, bg:'#1d6b2e', grid:'rgba(255,255,255,.05)', cap:70,
+    types:[['mantis',2],['wasp',3],['firefly',2.5],['hornet',1.2]],
+    portals:[
+      {x:800,y:800,   to:'garden', color:'#7ed957', label:'花园 🌸'},
+      {x:5200,y:5200, to:'hel',    color:'#ff4530', label:'地狱 🔥'},
+    ] },
+  hel:    { name:'地狱', icon:'🔥', w:4800, h:4800, bg:'#3a1530', grid:'rgba(255,120,90,.08)', cap:48,
+    types:[['helbeetle',2],['centipede',2.5],['demon',1.5]],
+    portals:[ {x:800,y:800, to:'jungle', color:'#4bbf5a', label:'丛林 🌴'} ] },
+};
+for(const k in MAPS) MAPS[k].id = k;   // 让每张地图知道自己的 id（落点定位用）
+// 进入门槛：等级越高才能去越深的地图（怪更强、奖励更高）
+const MAP_MINLV = { garden:1, desert:4, ocean:8, jungle:14, hel:22, pyramid:7, sewers:11 };
+for(const k in MAPS) MAPS[k].minLevel = MAP_MINLV[k];
+// 各地图刷出的生物基准阶级（越深的地图生物阶级越高、越强、奖励越高）
+const MAP_RARBASE = { garden:0, desert:2, ocean:3, jungle:5, hel:7, pyramid:3, sewers:4 };
+for(const k in MAPS) MAPS[k].rarBase = MAP_RARBASE[k];
+
+// ---------- 状态 ----------
+let player, mobs, drops, particles, projectiles, firePatches;
+let saveTimer = 0, bossTimer = 0;
+let renderNow = 0;
+let camera = { x:0, y:0 };
+let mouse = { x:0, y:0, sx:0, sy:0, left:false, right:false };
+let running = false, paused = false;
+let lastTime = 0, spawnTimer = 0;
+let selectedSlot = null;
+let curMap = MAPS.garden;   // 当前所在地图
+let portalCD = 0;           // 传送冷却，防止落地即触发
+
+const SLOT_COUNT = 10;
+
+function freshPlayer(){
+  const petals = new Array(SLOT_COUNT).fill(null);
+  for (let i=0;i<5;i++) petals[i] = makePetal('basic'); // 起手 5 基础 + 5 空格
+  const p = {
+    x: WORLD.w/2, y: WORLD.h/2, vx:0, vy:0, r:22,
+    level:1, xp:0, xpNext:100,
+    baseMaxHp:500, maxHp:500, hp:500,           // 基础生命提高
+    score:0, kills:0, gold:0, baseSpeed:230, speed:230,
+    petalAngle:0, angularSpeed:2.5, currentRadius:50,
+    mode:'normal', face:0, hurtFlash:0,
+    petals,
+    inventory:{},   // 'id#rar' -> 数量（备用花瓣）
+    stats:{ hp:0, atk:0, def:0, spd:0 }, statPoints:0,   // 可自由分配的属性点
+    stunUntil:0, slowUntil:0, poison:null,               // 受到的状态效果
+  };
+  return p;
+}
+// 属性点效果
+function atkMult(){ return 1 + (player.stats?player.stats.atk:0)*0.05; }
+function defReduce(){ return Math.min(0.7, (player.stats?player.stats.def:0)*0.025); }
+function spdMult(){ return 1 + (player.stats?player.stats.spd:0)*0.035; }
+function makePetal(id, rar=0){
+  const p={ id, rar, deadUntil:0, x:-1e7, y:0, angle:0, healCd:0 };
+  p.r = 10 + rar*1.3;        // 阶级越高花瓣略大
+  p.hp = pMaxHp(p);
+  p.healCd = pReload(p);
+  return p;
+}
+
+function recomputeStats(){
+  let bonus=0;
+  for (const pet of player.petals){ if(pet) bonus+=pBonusHp(pet); }
+  const statHp = (player.stats?player.stats.hp:0)*60;   // 每点生命 +60
+  player.maxHp = player.baseMaxHp + bonus + statHp;
+  player.speed = player.baseSpeed * spdMult();
+  if (player.hp > player.maxHp) player.hp = player.maxHp;
+}
+
+function resetGame(){
+  player = freshPlayer();
+  drops=[]; particles=[]; projectiles=[]; firePatches=[]; selectedSlot=null;
+  recomputeStats();
+  enterMap('garden', null);   // 从花园开始
+}
+
+// ---------- 切换地图 / 传送 ----------
+function enterMap(id, fromId){
+  curMap = MAPS[id];
+  WORLD.w = curMap.w; WORLD.h = curMap.h;
+  // 落点：新地图里通往来源地图的那个传送门旁，朝地图中心偏移，避免落地即触发
+  let arrive = fromId ? curMap.portals.find(pt=>pt.to===fromId) : null;
+  if(arrive){
+    const a=Math.atan2(curMap.h/2-arrive.y, curMap.w/2-arrive.x);
+    player.x = clamp(arrive.x+Math.cos(a)*170, 60, curMap.w-60);
+    player.y = clamp(arrive.y+Math.sin(a)*170, 60, curMap.h-60);
+  } else { player.x = curMap.w/2; player.y = curMap.h/2; }
+  player.vx=0; player.vy=0;
+  camera.x=player.x; camera.y=player.y;
+  mobs=[]; projectiles=[]; firePatches=[]; spawnTimer=0; portalCD=1.3; bossTimer=rand(18,32);
+  const seed = Math.floor(curMap.cap*0.7);
+  for(let i=0;i<seed;i++) spawnMob();          // 铺满整张地图
+  if(running) showHint(`进入【${curMap.name}】${curMap.icon}`);
+  updateHUD();
+}
+
+// ---------- 刷怪 ----------
+function spawnMob(near){
+  let x,y;
+  if (near){ const a=Math.random()*Math.PI*2, d=rand(900,1500);
+    x=clamp(player.x+Math.cos(a)*d,60,WORLD.w-60); y=clamp(player.y+Math.sin(a)*d,60,WORLD.h-60);
+  } else { x=rand(120,WORLD.w-120); y=rand(120,WORLD.h-120); }
+  const type=weighted(curMap.types);
+  const t=MOBS[type];
+  const rar=rollMobRarity(curMap);
+  const hp=Math.round(t.hp*mobHpMult(rar));
+  mobs.push({ type,x,y,vx:0,vy:0,r:t.r,rar,hp,maxHp:hp,angry:false,
+    wanderA:Math.random()*Math.PI*2,wanderT:0,hitFlash:0,poison:null,burn:null,stun:0,slowUntil:0,
+    atkCd:rand(0.5,2.5), dashT:0, dvx:0, dvy:0, boss:false });
+}
+// Boss：全属性更强 + 一项伤害抗性，随机刷在玩家附近
+function spawnBoss(){
+  const a=Math.random()*Math.PI*2, d=rand(600,1000);
+  const x=clamp(player.x+Math.cos(a)*d,80,WORLD.w-80), y=clamp(player.y+Math.sin(a)*d,80,WORLD.h-80);
+  const type=weighted(curMap.types); const t=MOBS[type];
+  const rar=clamp((curMap.rarBase||0)+1+(Math.random()<0.5?1:0),0,MAXRAR);
+  const hp=Math.round(t.hp*mobHpMult(rar)*7);   // 血量厚得多
+  const resists=['none','wood','fire','water','metal','earth'];
+  const resist=resists[Math.floor(Math.random()*resists.length)];
+  mobs.push({ type,x,y,vx:0,vy:0,r:t.r*2,rar,hp,maxHp:hp,angry:true,
+    wanderA:Math.random()*Math.PI*2,wanderT:0,hitFlash:0,poison:null,burn:null,stun:0,slowUntil:0,
+    atkCd:rand(0.5,1.5), dashT:0, dvx:0, dvy:0, boss:true, resist });
+  showHint(`⚠️ ${RARITY[rar].name}${t.name}·首领 出现了！（抗性：${elemName(resist)}）`);
+}
+
+// ---------- 工具 ----------
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function dist2(ax,ay,bx,by){ const dx=ax-bx,dy=ay-by; return dx*dx+dy*dy; }
+function rand(a,b){ return a+Math.random()*(b-a); }
+
+// ---------- 输入 ----------
+function resize(){ canvas.width=innerWidth; canvas.height=innerHeight; }
+addEventListener('resize', resize); resize();
+
+canvas.addEventListener('mousemove', e=>{ mouse.sx=e.clientX; mouse.sy=e.clientY; });
+canvas.addEventListener('mousedown', e=>{ if(e.button===0)mouse.left=true; if(e.button===2)mouse.right=true; });
+addEventListener('mouseup', e=>{ if(e.button===0)mouse.left=false; if(e.button===2)mouse.right=false; });
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+addEventListener('keydown', e=>{ if(e.key==='b'||e.key==='B') toggleInventory(); else if(e.key==='Escape'&&paused) closeInventory(); });
+
+canvas.addEventListener('touchstart', handleTouch, {passive:false});
+canvas.addEventListener('touchmove', handleTouch, {passive:false});
+canvas.addEventListener('touchend', e=>{ e.preventDefault(); if(e.touches.length===0){mouse.left=false;mouse.right=false;} else handleTouch(e); }, {passive:false});
+function handleTouch(e){ e.preventDefault(); const t=e.touches[0]; if(t){mouse.sx=t.clientX;mouse.sy=t.clientY;} mouse.left=e.touches.length===1; mouse.right=e.touches.length>=2; }
+
+// ---------- 主循环 ----------
+function frame(now){
+  if(!running) return;
+  const dt=Math.min(0.05,(now-lastTime)/1000||0); lastTime=now;
+  if(!paused) update(dt,now);
+  render(now);
+  requestAnimationFrame(frame);
+}
+
+function update(dt, now){
+  const p=player;
+  mouse.x = mouse.sx - canvas.width/2 + camera.x;
+  mouse.y = mouse.sy - canvas.height/2 + camera.y;
+
+  // 玩家受到的状态：中毒掉血、地面火焰、眩晕、减速
+  if(p.poison){ if(now<p.poison.until){ hurt(p.poison.dps*dt); } else p.poison=null; }
+  for(const fp of firePatches){ if(dist2(fp.x,fp.y,p.x,p.y)<(fp.r+p.r)*(fp.r+p.r)) hurt(fp.dps*dt); }
+  const stunned = now < p.stunUntil;
+  const moveMul = now < p.slowUntil ? 0.45 : 1;
+
+  // 移动（距离衰减；眩晕时不能动，减速时变慢）
+  const dx=mouse.x-p.x, dy=mouse.y-p.y, d=Math.hypot(dx,dy);
+  if(stunned){ p.vx*=0.4; p.vy*=0.4; }
+  else if (d>4){ p.face=Math.atan2(dy,dx); const speed=Math.min(p.speed*moveMul,d*3.2); p.vx=dx/d*speed; p.vy=dy/d*speed; }
+  else { p.vx*=0.6; p.vy*=0.6; }
+  p.x=clamp(p.x+p.vx*dt,p.r,WORLD.w-p.r);
+  p.y=clamp(p.y+p.vy*dt,p.r,WORLD.h-p.r);
+
+  // 传送门：走进去就切换子地图（等级不够则上锁）
+  if(portalCD>0) portalCD-=dt;
+  else for(const pt of curMap.portals){
+    if(dist2(p.x,p.y,pt.x,pt.y) < 54*54){
+      const dest=MAPS[pt.to];
+      if(p.level < dest.minLevel){ showHint(`🔒 需要 Lv.${dest.minLevel} 才能进入【${dest.name}】，先去打怪升级吧！`); portalCD=1.4; break; }
+      enterMap(pt.to, curMap.id); return;
+    }
+  }
+
+  // 攻防态
+  p.mode = mouse.right?'defense':(mouse.left?'attack':'normal');
+  const desired = p.mode==='attack'?86:(p.mode==='defense'?26:52);
+  p.currentRadius += (desired-p.currentRadius)*Math.min(1,dt*7);
+
+  // 花瓣环绕（光轮转更快）
+  let spinBonus=0;
+  for (const pet of p.petals){ if(pet){ const sp=petalById(pet.id).spin; if(sp) spinBonus+=sp; } }
+  p.angularSpeed = (p.mode==='attack'?3.4:2.5) + spinBonus;
+  p.petalAngle += p.angularSpeed*dt;
+
+  const live = p.petals.filter(Boolean);
+  const n = live.length || 1;
+  let regenSum=0, idx=0;
+  for (const pet of p.petals){
+    if(!pet) continue;
+    const rg=pRegen(pet); if(rg) regenSum+=rg;
+    const hl=pHeal(pet); if(hl){ pet.healCd-=dt; if(pet.healCd<=0&&p.hp<p.maxHp){ heal(hl); pet.healCd=pReload(pet); } }
+    const myIndex = idx++;
+    if(pet.deadUntil>now){ pet.x=-1e7; continue; }
+    if(pet.hp<=0) pet.hp=pMaxHp(pet);
+    const a=p.petalAngle+(myIndex/n)*Math.PI*2;
+    const r=p.currentRadius+(p.mode==='attack'?Math.sin(now*0.006)*7:0);
+    pet.x=p.x+r*Math.cos(a); pet.y=p.y+r*Math.sin(a); pet.angle=a;
+  }
+  if(regenSum>0) heal(regenSum*dt);
+
+  // 敌人
+  for (const m of mobs){
+    if(m.dead) continue;
+    const t=MOBS[m.type];
+    const ddx=p.x-m.x, ddy=p.y-m.y, md=Math.hypot(ddx,ddy)||1;
+    if(m.atkCd>0) m.atkCd-=dt;
+    const mStunned = now < (m.stun||0);
+    const spd = t.speed * (now<(m.slowUntil||0)?0.45:1) * (m.boss?1.15:1);
+    let chase=false;
+    if(t.ai==='chase'||t.ai==='tank') chase=m.angry||md<260;
+    if(t.ai==='wander') chase=m.angry&&md<420;
+    if(mStunned){ m.vx*=0.4; m.vy*=0.4; m.dashT=0; }
+    else if(m.dashT>0){ m.dashT-=dt; m.vx=m.dvx; m.vy=m.dvy; }   // 冲刺中
+    else if(chase){ m.vx=ddx/md*spd; m.vy=ddy/md*spd; }
+    else { m.wanderT-=dt; if(m.wanderT<=0){m.wanderA=Math.random()*Math.PI*2;m.wanderT=rand(1.2,2.6);} m.vx=Math.cos(m.wanderA)*spd*0.45; m.vy=Math.sin(m.wanderA)*spd*0.45; }
+    // 多样化攻击方式（眩晕时无法攻击）
+    if(!mStunned && t.atk==='ranged' && m.atkCd<=0 && md<t.atkData.range){ fireProjectile(m,t.atkData); m.atkCd=t.atkData.cd; m.angry=true; }
+    if(!mStunned && t.atk==='charge' && m.atkCd<=0 && m.dashT<=0 && md<t.atkData.range){ m.dvx=ddx/md*t.atkData.dashSpeed; m.dvy=ddy/md*t.atkData.dashSpeed; m.dashT=t.atkData.dashTime; m.atkCd=t.atkData.cd; m.angry=true; }
+    m.x=clamp(m.x+m.vx*dt,m.r,WORLD.w-m.r);
+    m.y=clamp(m.y+m.vy*dt,m.r,WORLD.h-m.r);
+    if(m.hitFlash>0) m.hitFlash-=dt;
+
+    // 中毒 / 灼烧结算
+    if(m.poison){ if(now<m.poison.until){ m.hp-=m.poison.dps*dt; if(m.hp<=0){ killMob(m); continue; } } else m.poison=null; }
+    if(m.burn){ if(now<m.burn.until){ m.hp-=m.burn.dps*dt; if(m.hp<=0){ killMob(m); continue; } } else m.burn=null; }
+
+    // 花瓣 ↔ 敌人
+    for (const pet of p.petals){
+      if(!pet||pet.x<-1e6) continue;
+      const rr=pet.r+m.r;
+      if(dist2(pet.x,pet.y,m.x,m.y)<rr*rr){
+        const pt=petalById(pet.id);
+        let dmg=pDmg(pet)*atkMult();
+        if(pt.crit && Math.random()<0.3){ dmg*=pt.crit; spawnParticles(m.x,m.y,'#ffd24a',4); }  // 金系暴击
+        m.hp-=dmgToMob(m,dmg,pt.elem||'none'); m.hitFlash=0.12; m.angry=true; pet.hp-=6;
+        applyPetalElem(m,pet,now);
+        knock(m,pet.x,pet.y,30);
+        if(pet.hp<=0){ pet.deadUntil=now+pReload(pet)*1000; spawnParticles(pet.x,pet.y,pt.color,4); }
+        if(m.hp<=0){ killMob(m); break; }
+      }
+    }
+    if(m.hp<=0) continue;
+
+    // 敌人 ↔ 花朵：可以穿过生物。重叠时：玩家对怪造成接触伤害(每秒为其总血1/10)，玩家也受接触伤害
+    const rb=m.r+p.r;
+    if(dist2(m.x,m.y,p.x,p.y)<rb*rb){
+      m.hp-=dmgToMob(m, m.maxHp*0.1*dt, 'none');
+      if(m.hp<=0){ killMob(m); continue; }
+      const reduce=p.mode==='defense'?0.45:1;
+      hurt(mobAtk(m)*reduce*dt*3.2);
+      if(Math.random()<dt*1.2) applyElemToPlayer(t.elem, m.boss, m.rar, now, p.x, p.y);
+      m.angry=true;
+    }
+  }
+
+  // 敌人射弹：飞行 + 撞花瓣抵消(金系穿透) + 命中花朵伤害并附加元素状态
+  for (let i=projectiles.length-1;i>=0;i--){
+    const pr=projectiles[i]; pr.x+=pr.vx*dt; pr.y+=pr.vy*dt; pr.life-=dt;
+    let gone = pr.life<=0 || pr.x<0||pr.y<0||pr.x>WORLD.w||pr.y>WORLD.h;
+    if(!gone && !pr.pierce){ for(const pet of p.petals){ if(!pet||pet.x<-1e6) continue;
+      if(dist2(pr.x,pr.y,pet.x,pet.y)<(pr.r+pet.r)*(pr.r+pet.r)){ gone=true; spawnParticles(pr.x,pr.y,pr.color,3); break; } } }
+    if(!gone && dist2(pr.x,pr.y,p.x,p.y)<(pr.r+p.r)*(pr.r+p.r)){
+      const reduce=p.mode==='defense'?0.45:1; hurt(pr.dmg*reduce);
+      applyElemToPlayer(pr.elem, pr.boss, pr.rar, now, pr.x, pr.y);
+      spawnParticles(pr.x,pr.y,pr.color,4); gone=true;
+    }
+    if(gone) projectiles.splice(i,1);
+  }
+  // 地面火焰：到时清除
+  for(let i=firePatches.length-1;i>=0;i--){ if(now>firePatches[i].until) firePatches.splice(i,1); }
+  // 随机刷 Boss（同地图同时最多 1 只）
+  bossTimer-=dt; if(bossTimer<=0){ if(!mobs.some(mm=>mm.boss && !mm.dead)) spawnBoss(); bossTimer=rand(25,45); }
+
+  // 掉落
+  for (let i=drops.length-1;i>=0;i--){
+    const dr=drops[i]; dr.t+=dt; dr.bob=Math.sin(dr.t*4)*4;
+    const rr=p.r+16;
+    if(dist2(dr.x,dr.y,p.x,p.y)<rr*rr){ pickupPetal(dr.id, dr.rar); spawnParticles(dr.x,dr.y,petalById(dr.id).color,8); drops.splice(i,1); }
+    else if(dr.t>40) drops.splice(i,1);
+  }
+
+  // 粒子
+  for (let i=particles.length-1;i>=0;i--){ const pa=particles[i]; pa.x+=pa.vx*dt; pa.y+=pa.vy*dt; pa.vx*=0.92; pa.vy*=0.92; pa.life-=dt; if(pa.life<=0) particles.splice(i,1); }
+
+  // 清掉本帧死亡的怪（循环结束后统一处理，避免边遍历边删导致漏判碰撞）
+  if(mobs.some(m=>m.dead)) mobs=mobs.filter(m=>!m.dead);
+
+  // 补怪（维持当前地图的数量上限，在玩家周围远处刷新）
+  spawnTimer-=dt; if(spawnTimer<=0&&mobs.length<curMap.cap){ spawnMob(true); spawnTimer=rand(0.5,1.2); }
+  if(p.hurtFlash>0) p.hurtFlash-=dt;
+
+  camera.x+=(p.x-camera.x)*Math.min(1,dt*8);
+  camera.y+=(p.y-camera.y)*Math.min(1,dt*8);
+
+  // 定时自动存档
+  saveTimer-=dt; if(saveTimer<=0){ saveGame(); saveTimer=6; }
+  updateHUD();
+}
+
+function fireProjectile(m, ad){
+  const a=Math.atan2(player.y-m.y, player.x-m.x);
+  const e=MOBS[m.type].elem||'none';
+  const n=ad.burst||1; let dmg=ad.pdmg*mobDmgMult(m.rar)*(m.boss?1.8:1);
+  if(e==='metal') dmg*=1.4;                  // 金系穿刺更疼
+  const col = e!=='none' ? ELEM[e].color : (ad.pcolor||'#fff');
+  for(let i=0;i<n;i++){ const sp=a+(i-(n-1)/2)*0.2;
+    projectiles.push({ x:m.x+Math.cos(sp)*m.r, y:m.y+Math.sin(sp)*m.r,
+      vx:Math.cos(sp)*ad.pspeed, vy:Math.sin(sp)*ad.pspeed,
+      dmg, r:(ad.pr||6)*(m.boss?1.6:1), color:col, glow:ad.glow||e!=='none', life:2.4,
+      elem:e, pierce:(e==='metal'), boss:m.boss, rar:m.rar }); }
+}
+// 生物攻击力（含阶级与 Boss 加成）
+function mobAtk(m){ return MOBS[m.type].dmg * mobDmgMult(m.rar) * (m.boss?1.8:1); }
+// 对生物造成伤害（Boss 对同元素有抗性）
+function dmgToMob(m, dmg, elem){ return (m.boss && m.resist===elem) ? dmg*0.3 : dmg; }
+// 花瓣元素效果作用到生物身上
+function applyPetalElem(m, pet, now){
+  const t=petalById(pet.id);
+  const po=pPoison(pet); if(po) m.poison={dps:po.dps, until:now+po.dur*1000};
+  if(t.burn){ m.burn={dps:t.burn.dps*rmul(pet), until:now+t.burn.dur*1000}; }
+  if(t.stun){ m.stun=Math.max(m.stun||0, now+t.stun*1000); }
+  if(t.slow){ m.slowUntil=Math.max(m.slowUntil||0, now+t.slow*1000); }
+}
+// 生物元素效果作用到玩家身上（眩晕/减速/中毒/地面火焰）
+function applyElemToPlayer(elem, boss, rar, now, x, y){
+  if(elem==='wood') player.stunUntil=Math.max(player.stunUntil, now+(boss?900:520));
+  else if(elem==='water') player.slowUntil=Math.max(player.slowUntil, now+1300);
+  else if(elem==='earth') player.poison={dps:(boss?40:16)+rar*4, until:now+2500};
+  else if(elem==='fire') firePatches.push({x,y,r:48,dps:(boss?42:20)+rar*4,until:now+2600});
+}
+
+function knock(m,fx,fy,force){ const dx=m.x-fx,dy=m.y-fy,d=Math.hypot(dx,dy)||1; m.x=clamp(m.x+dx/d*force*0.019,m.r,WORLD.w-m.r); m.y=clamp(m.y+dy/d*force*0.019,m.r,WORLD.h-m.r); }
+
+function killMob(m){
+  if(m.dead) return;
+  m.dead=true;            // 标记死亡，循环结束后统一清除
+  const t=MOBS[m.type];
+  const bossMul=m.boss?6:1;
+  const sc=Math.round(t.score*mobScoreMult(m.rar)*bossMul);
+  player.kills++; player.score+=sc; player.gold+=sc; gainXP(t.xp*mobXpMult(m.rar)*bossMul);
+  spawnParticles(m.x,m.y,t.color,m.boss?28:12);
+  if(m.boss) showHint(`🏆 击败首领！大量奖励到手 +${sc}🪙`);
+  // 多花瓣掉落：越强的怪掉的次数越多；Boss 掉更多更好
+  const tries = (t.tier+1)*(m.boss?3:1);
+  for(let i=0;i<tries;i++){
+    if(Math.random()<t.drop){ const a=Math.random()*6.283, d=rand(6,m.boss?70:30); const lo=rollDrop(m.type, m.rar);
+      drops.push({ id:lo.id, rar:lo.rar, x:m.x+Math.cos(a)*d, y:m.y+Math.sin(a)*d, t:0, bob:0 }); }
+  }
+}
+
+function weighted(table){ // [[id,weight],...]
+  let s=0; for(const e of table) s+=e[1];
+  let r=Math.random()*s;
+  for(const e of table){ r-=e[1]; if(r<=0) return e[0]; }
+  return table[0][0];
+}
+function rollDrop(type, crar=0){
+  const tier=MOBS[type].tier;
+  const id=weighted(LOOT[tier] || LOOT[1]);
+  const rar=rollDropRarity(crar);
+  return { id, rar };
+}
+
+// 拾取：有空格子就装上，否则进背包（按 id+阶级 分别堆叠）
+function pickupPetal(id, rar=0){
+  const lbl=RARITY[rar].name+petalById(id).name;
+  const empty=player.petals.findIndex(s=>!s);
+  if(empty>=0){ player.petals[empty]=makePetal(id,rar); recomputeStats(); showHint(`装备【${lbl}】！`); }
+  else { const k=pkey(id,rar); player.inventory[k]=(player.inventory[k]||0)+1; showHint(`背包 +1：${lbl}（点🎒装备）`); }
+  renderSlots(); updateBadge(); saveGame();
+}
+
+// ---------- 数值 ----------
+function hurt(a){ if(a<=0||!running)return; a*=(1-defReduce()); player.hp-=a; player.hurtFlash=0.18; if(player.hp<=0){player.hp=0; die();} }
+function heal(a){ player.hp=Math.min(player.maxHp,player.hp+a); }
+function gainXP(x){ player.xp+=x; while(player.xp>=player.xpNext){ player.xp-=player.xpNext; levelUp(); } }
+function levelUp(){
+  player.level++; player.xpNext=Math.round(player.xpNext*1.25);
+  player.baseMaxHp+=40; player.statPoints+=3;     // 升级给 3 点自由属性
+  recomputeStats(); player.hp=player.maxHp;
+  spawnParticles(player.x,player.y,'#ffe27a',18);
+  let unlocked=null;
+  for(const k in MAPS){ if(MAPS[k].minLevel===player.level) unlocked=MAPS[k]; }
+  showHint(unlocked ? `🎉 升到 Lv.${player.level}，解锁新地图【${unlocked.name}】${unlocked.icon}！获得 3 属性点！`
+                    : `升级！Lv.${player.level}，血量上限 +40、获得 3 属性点（按 B → 属性 分配）`);
+  saveGame();
+}
+function applyStat(key){
+  if(player.statPoints<=0) return;
+  player.stats[key]++; player.statPoints--;
+  recomputeStats(); if(key==='hp') player.hp=Math.min(player.maxHp,player.hp+60);
+  updateHUD(); renderInventory(); saveGame();
+}
+function die(){
+  running=false; saveGame();
+  document.getElementById('deadinfo').textContent=`你打败了 ${player.kills} 只虫子，得到 ${player.score} 分！花瓣、背包、等级全部保留～`;
+  document.getElementById('dead').classList.remove('hidden');
+}
+
+// ---------- 渲染 ----------
+function render(now){
+  renderNow=now;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle=curMap.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+  const camX=canvas.width/2-camera.x, camY=canvas.height/2-camera.y;
+  ctx.setTransform(1,0,0,1,camX,camY);
+  drawWorld();
+  for(const pt of curMap.portals) drawPortal(pt, now);
+  // 地面火焰
+  for(const fp of firePatches){ const k=Math.max(0,(fp.until-now)/2600);
+    ctx.globalAlpha=0.25+0.25*k; ctx.fillStyle='#ff6a2b'; ctx.beginPath(); ctx.arc(fp.x,fp.y,fp.r,0,7); ctx.fill();
+    ctx.globalAlpha=0.5*k; ctx.fillStyle='#ffd23a'; ctx.beginPath(); ctx.arc(fp.x,fp.y,fp.r*0.6,0,7); ctx.fill(); ctx.globalAlpha=1; }
+  for(const dr of drops) drawDrop(dr);
+  // 只画视野内的怪（大地图省性能）
+  const vL=camera.x-canvas.width/2-80, vR=camera.x+canvas.width/2+80, vT=camera.y-canvas.height/2-80, vB=camera.y+canvas.height/2+80;
+  for(const m of mobs){ if(m.x<vL||m.x>vR||m.y<vT||m.y>vB) continue; drawMob(m); }
+  for(const pr of projectiles){ if(pr.glow){ctx.shadowColor=pr.color;ctx.shadowBlur=10;} ctx.fillStyle=pr.color; ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(pr.x,pr.y,pr.r,0,7); ctx.fill(); ctx.stroke(); ctx.shadowBlur=0; }
+  drawFlower(player,now);
+  for(const pa of particles){ ctx.globalAlpha=Math.max(0,pa.life/pa.maxLife); ctx.fillStyle=pa.color; ctx.beginPath(); ctx.arc(pa.x,pa.y,pa.r,0,7); ctx.fill(); }
+  ctx.globalAlpha=1;
+  if(player.hurtFlash>0){ ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle=`rgba(255,0,0,${player.hurtFlash*0.6})`; ctx.fillRect(0,0,canvas.width,canvas.height); }
+  drawMinimap();
+}
+function drawWorld(){
+  ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=6; ctx.strokeRect(0,0,WORLD.w,WORLD.h);
+  const left=camera.x-canvas.width/2, top=camera.y-canvas.height/2, right=camera.x+canvas.width/2, bot=camera.y+canvas.height/2;
+  ctx.strokeStyle=curMap.grid; ctx.lineWidth=2; ctx.beginPath();
+  for(let x=Math.floor(left/CELL)*CELL;x<right;x+=CELL){ ctx.moveTo(x,Math.max(0,top)); ctx.lineTo(x,Math.min(WORLD.h,bot)); }
+  for(let y=Math.floor(top/CELL)*CELL;y<bot;y+=CELL){ ctx.moveTo(Math.max(0,left),y); ctx.lineTo(Math.min(WORLD.w,right),y); }
+  ctx.stroke();
+}
+function drawFlower(p,now){
+  for(const pet of p.petals){
+    if(!pet||pet.x<-1e6) continue;
+    const t=petalById(pet.id); const rc=RARITY[pet.rar].color;
+    if(t.glow||pet.rar>=3){ ctx.shadowColor=rc; ctx.shadowBlur=14; }
+    ctx.fillStyle=t.color; ctx.beginPath(); ctx.arc(pet.x,pet.y,pet.r,0,7); ctx.fill(); ctx.shadowBlur=0;
+    // 阶级彩色描边（越高阶越粗越亮）
+    ctx.strokeStyle = pet.rar===0 ? 'rgba(0,0,0,.25)' : rc;
+    ctx.lineWidth = pet.rar===0 ? 2 : 2.5+pet.rar*0.5;
+    ctx.beginPath(); ctx.arc(pet.x,pet.y,pet.r,0,7); ctx.stroke();
+  }
+  ctx.save(); ctx.translate(p.x,p.y);
+  ctx.fillStyle=p.hurtFlash>0?'#ffd6d6':'#ffe27a'; ctx.strokeStyle='#caa53a'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.arc(0,0,p.r,0,7); ctx.fill(); ctx.stroke();
+  const ox=Math.cos(p.face)*3, oy=Math.sin(p.face)*3;
+  ctx.fillStyle='#3a2a10';
+  ctx.beginPath(); ctx.arc(-7+ox,-4+oy,3.2,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(7+ox,-4+oy,3.2,0,7); ctx.fill();
+  ctx.strokeStyle='#3a2a10'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.arc(ox,3+oy,7,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+  ctx.restore();
+}
+// 外观装饰：身体后面的（翅膀/多足）
+function decoBack(t,r,ang,now){
+  if(t.deco==='wings'){
+    ctx.save(); ctx.rotate(ang);
+    const flap=Math.abs(Math.sin(now*0.02))*0.45+0.55;
+    ctx.fillStyle='rgba(255,255,255,.55)'; ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=2;
+    for(const s of [-1,1]){ ctx.beginPath(); ctx.ellipse(-r*0.2, s*r*0.95, r*0.7, r*0.45*flap, s*0.5, 0,7); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+  } else if(t.deco==='legs'){
+    ctx.save(); ctx.rotate(ang); ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.lineWidth=3;
+    for(const s of [-1,1]) for(let i=0;i<3;i++){ const lx=(i-1)*r*0.55; ctx.beginPath(); ctx.moveTo(lx,0); ctx.lineTo(lx+s*r*0.35, s*r*1.5); ctx.stroke(); }
+    ctx.restore();
+  }
+}
+// 外观装饰：身体前面的（触角/尖角/钳子）
+function decoFront(t,r,ang,col){
+  if(t.deco==='antenna'){ ctx.save(); ctx.rotate(ang); ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.lineWidth=2.5;
+    for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(r*0.5,s*r*0.25); ctx.quadraticCurveTo(r*1.1,s*r*0.45,r*1.2,s*r*0.95); ctx.stroke();
+      ctx.fillStyle='rgba(0,0,0,.6)'; ctx.beginPath(); ctx.arc(r*1.2,s*r*0.95,2.5,0,7); ctx.fill(); }
+    ctx.restore();
+  } else if(t.deco==='horn'){ ctx.save(); ctx.rotate(ang); ctx.fillStyle=t.accent||'#222'; ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(r*0.8,-r*0.28); ctx.lineTo(r*1.55,0); ctx.lineTo(r*0.8,r*0.28); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  } else if(t.deco==='claws'){ ctx.save(); ctx.rotate(ang); ctx.fillStyle=col; ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=2;
+    for(const s of [-1,1]){ ctx.beginPath(); ctx.arc(r*1.05, s*r*0.6, r*0.33, 0,7); ctx.fill(); ctx.stroke(); } ctx.restore();
+  }
+}
+function drawMob(m){
+  const t=MOBS[m.type];
+  const flash=m.hitFlash>0, col=flash?'#fff':t.color, r=m.r;
+  const ang=Math.atan2(m.vy,m.vx);
+  ctx.save(); ctx.translate(m.x,m.y);
+  if(t.glow){ ctx.shadowColor=t.color; ctx.shadowBlur=13; }
+  if(t.deco) decoBack(t,r,ang,renderNow);
+  ctx.fillStyle=col; ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=3;
+  switch(t.shape){
+    case 'oval':
+      ctx.save(); ctx.rotate(ang);
+      ctx.beginPath(); ctx.ellipse(0,0,r*1.25,r,0,0,7); ctx.fill(); ctx.stroke();
+      if(!flash&&t.accent){ ctx.fillStyle=t.accent; ctx.fillRect(-3,-r,6,r*2); ctx.fillRect(-r*0.9,-r*0.7,5,r*1.4); ctx.fillRect(r*0.7,-r*0.7,5,r*1.4); }
+      ctx.restore(); break;
+    case 'diamond':
+      ctx.beginPath(); ctx.moveTo(0,-r*1.25); ctx.lineTo(r,0); ctx.lineTo(0,r*1.25); ctx.lineTo(-r,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      if(!flash&&t.accent){ ctx.fillStyle=t.accent; ctx.beginPath(); ctx.arc(0,0,r*0.32,0,7); ctx.fill(); } break;
+    case 'spiky': {
+      const k=9; ctx.beginPath();
+      for(let i=0;i<k*2;i++){ const a2=i/(k*2)*Math.PI*2, rr=(i%2)?r*1.4:r*0.78; const fn=i?'lineTo':'moveTo'; ctx[fn](Math.cos(a2)*rr,Math.sin(a2)*rr); }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=flash?'#fff':'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(0,0,r*0.45,0,7); ctx.fill(); break; }
+    case 'blob': {
+      ctx.beginPath(); ctx.arc(0,0,r,Math.PI,0); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle=col; ctx.lineWidth=4;
+      for(let i=0;i<5;i++){ const tx=(i-2)*r*0.42; ctx.beginPath(); ctx.moveTo(tx,0); ctx.lineTo(tx+Math.sin(m.x*0.04+i)*4, r*1.3); ctx.stroke(); } break; }
+    case 'seg': {
+      ctx.save(); ctx.rotate(ang);
+      for(let s=3;s>=0;s--){ const rr=r*(s===0?1:0.82); ctx.beginPath(); ctx.arc(-s*r*0.78,0,rr,0,7); ctx.fill(); ctx.stroke(); }
+      ctx.restore(); break; }
+    default: // round
+      ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill(); ctx.stroke();
+      if(!flash&&t.accent){ ctx.fillStyle=t.accent;
+        ctx.beginPath(); ctx.arc(0,-r*0.55,r*0.3,0,7); ctx.fill();
+        ctx.beginPath(); ctx.arc(-r*0.4,r*0.2,r*0.16,0,7); ctx.fill();
+        ctx.beginPath(); ctx.arc(r*0.4,r*0.2,r*0.16,0,7); ctx.fill(); }
+  }
+  if(t.deco) decoFront(t,r,ang,col);
+  // 眼睛（朝移动方向，让生物更生动）
+  ctx.save(); ctx.rotate(ang);
+  for(const s of [-1,1]){ ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(r*0.42, s*r*0.34, r*0.22,0,7); ctx.fill();
+    ctx.fillStyle='#1a1a1a'; ctx.beginPath(); ctx.arc(r*0.52, s*r*0.34, r*0.11,0,7); ctx.fill(); }
+  ctx.restore();
+  ctx.shadowBlur=0;
+  // 状态染色：中毒绿 / 灼烧橙 / 冰冻蓝 / 眩晕黄
+  if(m.poison){ ctx.fillStyle='rgba(120,220,90,.35)'; ctx.beginPath(); ctx.arc(0,0,r+2,0,7); ctx.fill(); }
+  if(m.burn){ ctx.fillStyle='rgba(255,120,40,.35)'; ctx.beginPath(); ctx.arc(0,0,r+2,0,7); ctx.fill(); }
+  if(renderNow<(m.slowUntil||0)){ ctx.fillStyle='rgba(70,200,255,.30)'; ctx.beginPath(); ctx.arc(0,0,r+2,0,7); ctx.fill(); }
+  if(renderNow<(m.stun||0)){ ctx.fillStyle='rgba(255,230,80,.35)'; ctx.beginPath(); ctx.arc(0,0,r+2,0,7); ctx.fill(); }
+  if(m.rar>0){ ctx.strokeStyle=RARITY[m.rar].color; ctx.lineWidth=3; ctx.globalAlpha=.9; ctx.beginPath(); ctx.arc(0,0,r+4,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+  if(m.boss){ ctx.strokeStyle='#ffd23a'; ctx.lineWidth=5; ctx.globalAlpha=.85; ctx.beginPath(); ctx.arc(0,0,r+10,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+  ctx.restore();
+  if(m.hp<m.maxHp){ const w=r*2; ctx.fillStyle='rgba(0,0,0,.4)'; ctx.fillRect(m.x-w/2,m.y-r-12,w,5); ctx.fillStyle=m.boss?'#ffd23a':'#7bed7b'; ctx.fillRect(m.x-w/2,m.y-r-12,w*Math.max(0,m.hp/m.maxHp),5); }
+  if(m.boss){ ctx.font='bold 14px sans-serif'; ctx.textAlign='center'; ctx.lineWidth=4; ctx.strokeStyle='rgba(0,0,0,.7)'; ctx.fillStyle='#ffd23a';
+    const lbl=`👑${RARITY[m.rar].name}${t.name} 抗${elemName(m.resist)}`;
+    ctx.strokeText(lbl, m.x, m.y-r-20); ctx.fillText(lbl, m.x, m.y-r-20); ctx.textAlign='left'; }
+  else if(m.rar>=2){ ctx.font='bold 11px sans-serif'; ctx.textAlign='center'; ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.fillStyle=RARITY[m.rar].color;
+    ctx.strokeText(RARITY[m.rar].name, m.x, m.y-r-19); ctx.fillText(RARITY[m.rar].name, m.x, m.y-r-19); ctx.textAlign='left'; }
+}
+function drawPortal(pt, now){
+  const dest=MAPS[pt.to];
+  const locked = player.level < dest.minLevel;
+  const color = locked ? '#8a8a8a' : pt.color;
+  ctx.save(); ctx.translate(pt.x,pt.y);
+  const r=46;
+  ctx.shadowColor=color; ctx.shadowBlur=locked?6:26;
+  ctx.fillStyle='rgba(0,0,0,.5)'; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle=color; ctx.lineWidth=6; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.stroke();
+  if(!locked){ const a=now*0.002; ctx.globalAlpha=.75; ctx.lineWidth=3;
+    for(let i=0;i<3;i++){ ctx.beginPath(); ctx.arc(0,0,r*0.6, a+i*2.1, a+i*2.1+1.4); ctx.stroke(); }
+    ctx.globalAlpha=1;
+  } else { ctx.font='30px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔒',0,2); ctx.textBaseline='alphabetic'; ctx.textAlign='left'; }
+  ctx.restore();
+  ctx.font='bold 22px sans-serif'; ctx.textAlign='center';
+  ctx.lineWidth=5; ctx.strokeStyle='rgba(0,0,0,.65)'; ctx.fillStyle=locked?'#cfcfcf':'#fff';
+  const label = locked ? `${pt.label}（需Lv.${dest.minLevel}）` : '▶ '+pt.label;
+  ctx.strokeText(label, pt.x, pt.y-r-12);
+  ctx.fillText(label, pt.x, pt.y-r-12);
+  ctx.textAlign='left';
+}
+function drawDrop(dr){
+  const t=petalById(dr.id); const rc=RARITY[dr.rar||0].color;
+  ctx.save(); ctx.translate(dr.x,dr.y+dr.bob);
+  if((dr.rar||0)>=3){ ctx.shadowColor=rc; ctx.shadowBlur=12; } else { ctx.shadowColor='rgba(0,0,0,.3)'; ctx.shadowBlur=8; ctx.shadowOffsetY=4; }
+  ctx.fillStyle=t.color; ctx.beginPath(); ctx.arc(0,0,12,0,7); ctx.fill();
+  ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+  ctx.strokeStyle=rc; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,12,0,7); ctx.stroke();
+  ctx.restore();
+}
+function spawnParticles(x,y,color,count){ for(let i=0;i<count;i++){ const a=Math.random()*Math.PI*2,s=rand(40,160); particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:rand(2,5),color,life:rand(.3,.6),maxLife:.6}); } }
+function drawMinimap(){
+  mctx.clearRect(0,0,150,150); mctx.fillStyle='rgba(0,0,0,.3)'; mctx.fillRect(0,0,150,150);
+  const sx=150/WORLD.w, sy=150/WORLD.h;
+  mctx.fillStyle='rgba(255,255,255,.5)'; for(const m of mobs) mctx.fillRect(m.x*sx-1,m.y*sy-1,2,2);
+  for(const pt of curMap.portals){ mctx.fillStyle=pt.color; mctx.fillRect(pt.x*sx-4,pt.y*sy-4,8,8); }
+  mctx.fillStyle='#ffe27a'; mctx.beginPath(); mctx.arc(player.x*sx,player.y*sy,3.5,0,7); mctx.fill();
+}
+
+// ---------- HUD ----------
+function updateHUD(){
+  const p=player;
+  const sp = p.statPoints>0 ? `　⚔️+${p.statPoints}` : '';
+  let st='';
+  const now=renderNow;
+  if(now<p.stunUntil) st+=' ⚡眩晕'; if(now<p.slowUntil) st+=' ❄️减速'; if(p.poison&&now<p.poison.until) st+=' ☠️中毒';
+  document.getElementById('pname').textContent=`小花 · Lv.${p.level}${sp}${st}`;
+  document.getElementById('hpfill').style.width=(p.hp/p.maxHp*100)+'%';
+  document.getElementById('hptext').textContent=`${Math.ceil(p.hp)} / ${p.maxHp}`;
+  document.getElementById('xpfill').style.width=(p.xp/p.xpNext*100)+'%';
+  document.getElementById('xptext').textContent=`${Math.floor(p.xp)} / ${p.xpNext}`;
+  document.getElementById('score').textContent=`得分 ${p.score} · 击败 ${p.kills}`;
+  document.getElementById('biome').textContent=`${curMap.icon} ${curMap.name}`;
+  document.getElementById('hudgold').textContent=`🪙 ${p.gold}`;
+}
+function renderSlots(){
+  const box=document.getElementById('slots'); box.innerHTML='';
+  player.petals.forEach((pet,i)=>{
+    const el=document.createElement('div');
+    if(pet){ const t=petalById(pet.id); const rc=RARITY[pet.rar].color; el.className='slot'; el.style.borderColor=rc;
+      el.title=`${RARITY[pet.rar].name}${t.name}：${t.desc}`;
+      el.innerHTML=`<div class="dot" style="background:${t.color}"></div><span class="nm" style="color:${rc}">${t.name}</span>`; }
+    else { el.className='slot empty'; el.title='空格子'; el.innerHTML=`<div class="dot"></div>`; }
+    el.onclick=openInventory;  // 点任意格子打开背包
+    box.appendChild(el);
+  });
+}
+function updateBadge(){
+  let n=0; for(const k in player.inventory) n+=player.inventory[k];
+  const b=document.getElementById('bagbadge'); b.textContent=n; b.classList.toggle('show',n>0);
+}
+let hintTimer=null;
+function showHint(text){ const h=document.getElementById('hint'); h.textContent=text; h.classList.add('show'); clearTimeout(hintTimer); hintTimer=setTimeout(()=>h.classList.remove('show'),2200); }
+
+// ---------- 背包 / 图鉴 ----------
+const invEl=document.getElementById('inv');
+function toggleInventory(){ if(!running) return; paused?closeInventory():openInventory(); }
+function openInventory(){
+  if(!running) return;
+  paused=true; selectedSlot=player.petals.findIndex(s=>!s); if(selectedSlot<0)selectedSlot=null;
+  setTab('bag'); invEl.classList.add('show');
+}
+function closeInventory(){ paused=false; invEl.classList.remove('show'); lastTime=performance.now(); }
+
+let invTab='bag';
+function setTab(tab){ invTab=tab; document.querySelectorAll('.invtab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab)); renderInventory(); }
+function ownedKeysSorted(){
+  return Object.keys(player.inventory).filter(k=>player.inventory[k]>0)
+    .sort((a,b)=>{ const ra=+a.split('#')[1], rb=+b.split('#')[1]; return rb-ra || a.localeCompare(b); });
+}
+function petalStatLine(id,rar){ const probe={id,rar}; return `伤害 ${Math.round(pDmg(probe))} · 血量 ${pMaxHp(probe)} · 装填 ${pReload(probe).toFixed(2)}s`; }
+function dotHTML(t,rc){ return `<div class="cdot" style="background:${t.color};box-shadow:inset 0 -4px 6px rgba(0,0,0,.25),0 0 0 3px ${rc}"></div>`; }
+
+function renderInventory(){
+  document.getElementById('invgold').textContent='🪙 '+player.gold;
+  const tip=document.getElementById('invtip'), body=document.getElementById('tabbody'); body.innerHTML='';
+  if(invTab==='bag'){ tip.textContent='点空格子选位置 → 点"我的花瓣"装上；点已装备花瓣放回背包。攒 5 个同种同阶可【合成】高一阶！'; renderBag(body); }
+  else if(invTab==='stat'){ tip.textContent='升级获得属性点，自由加在生命/攻击/防御/速度上，打造你的小花！'; renderStats(body); }
+  else if(invTab==='shop'){ tip.textContent='用金币【购买】花瓣，或把多余花瓣【卖出】换金币。打怪也会获得金币。'; renderShop(body); }
+  else if(invTab==='forge'){ tip.textContent='把不要的花瓣丢进熔炉【分解】，立刻获得经验值！阶级越高经验越多。'; renderForge(body); }
+  else { tip.textContent='生物图鉴：每种生物的属性、攻击方式与掉落详情。'; renderDex(body); }
+}
+function renderBag(body){
+  const row=document.createElement('div'); row.id='equiprow';
+  player.petals.forEach((pet,i)=>{
+    const el=document.createElement('div'); el.className='slot'+(pet?'':' empty')+(selectedSlot===i?' sel':'');
+    if(pet){ const t=petalById(pet.id); const rc=RARITY[pet.rar].color; el.style.borderColor=(selectedSlot===i)?'#ffe27a':rc;
+      el.title=`${RARITY[pet.rar].name}${t.name}（点一下放回背包）`;
+      el.innerHTML=`<div class="dot" style="background:${t.color}"></div><span class="nm" style="color:${rc}">${t.name}</span>`; }
+    else { el.title='点一下选这个位置'; el.innerHTML='<div class="dot"></div>'; }
+    el.onclick=()=>{ if(player.petals[i]){ unequip(i); } else { selectedSlot=i; renderInventory(); } };
+    row.appendChild(el);
+  });
+  body.appendChild(row);
+  const h=document.createElement('div'); h.className='sechead'; h.textContent='🌼 我的花瓣'; body.appendChild(h);
+  const grid=document.createElement('div'); grid.className='grid'; body.appendChild(grid);
+  const keys=ownedKeysSorted();
+  if(!keys.length){ grid.innerHTML='<div class="empty-tip">背包是空的，去打怪捡花瓣吧！装满格子后多的会进这里。</div>'; return; }
+  for(const k of keys){
+    const [id,rs]=k.split('#'); const rar=+rs, cnt=player.inventory[k], t=petalById(id), rc=RARITY[rar].color;
+    const c=document.createElement('div'); c.className='pcard'; c.style.borderColor=rc;
+    c.innerHTML=`<div class="ptop">${dotHTML(t,rc)}<div class="pinfo"><b style="color:${rc}">${RARITY[rar].name}${t.name}</b><span class="cnt">×${cnt}</span><br><span class="cstat">${petalStatLine(id,rar)}</span></div></div><div class="pacts"></div>`;
+    const acts=c.querySelector('.pacts');
+    const eq=document.createElement('button'); eq.textContent='装备'; eq.onclick=()=>equipPetal(id,rar); acts.appendChild(eq);
+    const cb=document.createElement('button'); cb.className='b-gold'; cb.textContent=`合成(${cnt}/5)`; cb.disabled=(cnt<5||rar>=MAXRAR); cb.onclick=()=>combinePetal(id,rar); acts.appendChild(cb);
+    const sb=document.createElement('button'); sb.className='b-sell'; sb.textContent=`卖 ${sellValue(id,rar)}🪙`; sb.onclick=()=>sellPetal(id,rar,false); acts.appendChild(sb);
+    grid.appendChild(c);
+  }
+}
+function renderStats(body){
+  const s=player.stats;
+  const head=document.createElement('div'); head.className='sechead';
+  head.innerHTML=`⚔️ 属性点：<b style="color:#ffe27a">${player.statPoints}</b> 点可分配（每级 +3）`;
+  body.appendChild(head);
+  const rows=[
+    { key:'hp',  name:'❤️ 生命', val:s.hp,  eff:`最大生命 +${s.hp*60}（当前 ${player.maxHp}）`, per:'每点 +60 生命上限' },
+    { key:'atk', name:'⚔️ 攻击', val:s.atk, eff:`花瓣伤害 +${Math.round((atkMult()-1)*100)}%`, per:'每点 +5% 花瓣伤害' },
+    { key:'def', name:'🛡️ 防御', val:s.def, eff:`减伤 ${Math.round(defReduce()*100)}%`, per:'每点 +2.5% 减伤（上限70%）' },
+    { key:'spd', name:'💨 速度', val:s.spd, eff:`移动速度 +${Math.round((spdMult()-1)*100)}%`, per:'每点 +3.5% 移动速度' },
+  ];
+  const grid=document.createElement('div'); grid.className='grid'; body.appendChild(grid);
+  for(const r of rows){
+    const c=document.createElement('div'); c.className='pcard'; c.style.borderColor='rgba(255,255,255,.3)';
+    c.innerHTML=`<div class="pinfo"><b>${r.name}</b><span class="cnt">Lv.${r.val}</span><br><span class="cstat">${r.eff}</span><br><span class="cfeat">${r.per}</span></div><div class="pacts"></div>`;
+    const btn=document.createElement('button'); btn.className='b-gold'; btn.textContent='+1 点'; btn.disabled=player.statPoints<=0; btn.onclick=()=>applyStat(r.key);
+    c.querySelector('.pacts').appendChild(btn);
+    grid.appendChild(c);
+  }
+}
+function renderShop(body){
+  const h1=document.createElement('div'); h1.className='sechead'; h1.textContent='🛒 购买花瓣'; body.appendChild(h1);
+  const bg=document.createElement('div'); bg.className='grid'; body.appendChild(bg);
+  for(const t of PETALS) for(const rar of [0,1,2]){
+    const price=buyPrice(t.id,rar), rc=RARITY[rar].color;
+    const c=document.createElement('div'); c.className='pcard'; c.style.borderColor=rc;
+    c.innerHTML=`<div class="ptop">${dotHTML(t,rc)}<div class="pinfo"><b style="color:${rc}">${RARITY[rar].name}${t.name}</b><br><span class="cstat">${petalStatLine(t.id,rar)}</span></div></div><div class="pacts"></div>`;
+    const bb=document.createElement('button'); bb.className='b-gold'; bb.textContent=`购买 ${price}🪙`; bb.disabled=player.gold<price; bb.onclick=()=>buyPetal(t.id,rar); c.querySelector('.pacts').appendChild(bb);
+    bg.appendChild(c);
+  }
+  const h2=document.createElement('div'); h2.className='sechead'; h2.textContent='💰 出售我的花瓣'; body.appendChild(h2);
+  const sg=document.createElement('div'); sg.className='grid'; body.appendChild(sg);
+  const keys=ownedKeysSorted();
+  if(!keys.length){ sg.innerHTML='<div class="empty-tip">背包没有可卖的花瓣。</div>'; return; }
+  for(const k of keys){
+    const [id,rs]=k.split('#'); const rar=+rs, cnt=player.inventory[k], t=petalById(id), rc=RARITY[rar].color;
+    const c=document.createElement('div'); c.className='pcard'; c.style.borderColor=rc;
+    c.innerHTML=`<div class="ptop">${dotHTML(t,rc)}<div class="pinfo"><b style="color:${rc}">${RARITY[rar].name}${t.name}</b><span class="cnt">×${cnt}</span><br><span class="cstat">单价 ${sellValue(id,rar)}🪙</span></div></div><div class="pacts"></div>`;
+    const acts=c.querySelector('.pacts');
+    const s1=document.createElement('button'); s1.className='b-sell'; s1.textContent='卖1'; s1.onclick=()=>sellPetal(id,rar,false); acts.appendChild(s1);
+    const sa=document.createElement('button'); sa.className='b-sell'; sa.textContent=`全卖 ${sellValue(id,rar)*cnt}🪙`; sa.onclick=()=>sellPetal(id,rar,true); acts.appendChild(sa);
+    sg.appendChild(c);
+  }
+}
+function renderForge(body){
+  const grid=document.createElement('div'); grid.className='grid'; body.appendChild(grid);
+  const keys=ownedKeysSorted();
+  if(!keys.length){ grid.innerHTML='<div class="empty-tip">背包没有可分解的花瓣（装备中的需先放回背包）。</div>'; return; }
+  for(const k of keys){
+    const [id,rs]=k.split('#'); const rar=+rs, cnt=player.inventory[k], t=petalById(id), rc=RARITY[rar].color;
+    const c=document.createElement('div'); c.className='pcard'; c.style.borderColor=rc;
+    c.innerHTML=`<div class="ptop">${dotHTML(t,rc)}<div class="pinfo"><b style="color:${rc}">${RARITY[rar].name}${t.name}</b><span class="cnt">×${cnt}</span><br><span class="cstat">每个 +${decomposeXP(id,rar)} 经验 ✨</span></div></div><div class="pacts"></div>`;
+    const acts=c.querySelector('.pacts');
+    const d1=document.createElement('button'); d1.className='b-forge'; d1.textContent='分解1'; d1.onclick=()=>decomposePetal(id,rar,false); acts.appendChild(d1);
+    const da=document.createElement('button'); da.className='b-forge'; da.textContent=`全分解 +${decomposeXP(id,rar)*cnt}`; da.onclick=()=>decomposePetal(id,rar,true); acts.appendChild(da);
+    grid.appendChild(c);
+  }
+}
+function renderDex(body){
+  for(const mk in MAPS){ const map=MAPS[mk];
+    const sub=document.createElement('div'); sub.className='dexsub';
+    sub.textContent=`${map.icon} ${map.name}　生物基准阶级：${RARITY[map.rarBase].name}　进入需 Lv.${map.minLevel}`;
+    body.appendChild(sub);
+    const grid=document.createElement('div'); grid.className='grid'; body.appendChild(grid);
+    for(const [ty] of map.types){ const t=MOBS[ty];
+      const atk = t.atk==='ranged'?'远程射弹':(t.atk==='charge'?'冲刺扑击':'近身碰撞');
+      const tier=t.tier, lt=LOOT[tier], tot=lt.reduce((s,e)=>s+e[1],0);
+      const lootStr=lt.map(([id,w])=>`${petalById(id).name} ${Math.round(w/tot*100)}%`).join('、');
+      const c=document.createElement('div'); c.className='card';
+      c.innerHTML=`<div class="cdot" style="background:${t.color}"></div>
+        <div class="cinfo"><b>${t.name}</b>　<span class="cfeat">攻击：${atk}</span><br>
+        <span class="cstat">血量 ${t.hp} · 伤害 ${t.dmg} · 速度 ${t.speed} · 经验 ${t.xp} · 得分 ${t.score}</span><br>
+        <span class="cfeat">掉落几率 ${Math.round(t.drop*100)}% × ${tier+1} 次　阶级随生物提升</span><br>
+        <span class="cstat">可掉：${lootStr}</span></div>`;
+      grid.appendChild(c);
+    }
+  }
+  const psub=document.createElement('div'); psub.className='dexsub'; psub.textContent='🌸 花瓣图鉴（基础数值，阶级越高越强）'; body.appendChild(psub);
+  const pg=document.createElement('div'); pg.className='grid'; body.appendChild(pg);
+  for(const t of PETALS){ const feat=featText(t);
+    const c=document.createElement('div'); c.className='card';
+    c.innerHTML=`<div class="cdot" style="background:${t.color}"></div><div class="cinfo"><b>${t.name}</b><br>${t.desc}<br><span class="cstat">基础 伤害 ${t.dmg} · 血量 ${t.hp} · 装填 ${t.reload}s</span>${feat?`<br><span class="cfeat">✦ ${feat}</span>`:''}</div>`;
+    pg.appendChild(c);
+  }
+}
+function equipPetal(id,rar){
+  const k=pkey(id,rar); if((player.inventory[k]||0)<=0) return;
+  let idx=(selectedSlot!=null&&!player.petals[selectedSlot])?selectedSlot:player.petals.findIndex(s=>!s);
+  if(idx<0){ showHint('没有空格子了，先点掉一个花瓣放回背包'); return; }
+  player.petals[idx]=makePetal(id,rar);
+  player.inventory[k]--; if(player.inventory[k]<=0) delete player.inventory[k];
+  selectedSlot=player.petals.findIndex(s=>!s); if(selectedSlot<0)selectedSlot=null;
+  recomputeStats(); renderSlots(); updateBadge(); renderInventory(); saveGame();
+}
+function unequip(idx){
+  const pet=player.petals[idx]; if(!pet) return;
+  const k=pkey(pet.id,pet.rar);
+  player.inventory[k]=(player.inventory[k]||0)+1;
+  player.petals[idx]=null; selectedSlot=idx;
+  recomputeStats(); renderSlots(); updateBadge(); renderInventory(); saveGame();
+}
+// ---- 兑换 / 商店 / 熔炉 ----
+function combinePetal(id,rar){
+  if(rar>=MAXRAR) return;
+  const k=pkey(id,rar); if((player.inventory[k]||0)<5){ showHint('需要 5 个同种同阶花瓣才能合成'); return; }
+  player.inventory[k]-=5; if(player.inventory[k]<=0) delete player.inventory[k];
+  const nk=pkey(id,rar+1); player.inventory[nk]=(player.inventory[nk]||0)+1;
+  showHint(`✨ 合成成功 → ${RARITY[rar+1].name}${petalById(id).name}！`);
+  updateBadge(); renderInventory(); saveGame();
+}
+function sellPetal(id,rar,all){
+  const k=pkey(id,rar); const have=player.inventory[k]||0; if(have<=0) return;
+  const n=all?have:1, gain=sellValue(id,rar)*n;
+  player.inventory[k]-=n; if(player.inventory[k]<=0) delete player.inventory[k];
+  player.gold+=gain; showHint(`卖出 ${n} 个，+${gain} 金币 🪙`);
+  updateBadge(); updateHUD(); renderInventory(); saveGame();
+}
+function buyPetal(id,rar){
+  const price=buyPrice(id,rar);
+  if(player.gold<price){ showHint('金币不够～去打怪或卖花瓣攒钱吧'); return; }
+  player.gold-=price; const k=pkey(id,rar); player.inventory[k]=(player.inventory[k]||0)+1;
+  showHint(`🛒 购买 ${RARITY[rar].name}${petalById(id).name}！`);
+  updateBadge(); updateHUD(); renderInventory(); saveGame();
+}
+function decomposePetal(id,rar,all){
+  const k=pkey(id,rar); const have=player.inventory[k]||0; if(have<=0) return;
+  const n=all?have:1, xp=decomposeXP(id,rar)*n;
+  player.inventory[k]-=n; if(player.inventory[k]<=0) delete player.inventory[k];
+  gainXP(xp); showHint(`🔥 分解 ${n} 个，+${xp} 经验`);
+  updateBadge(); updateHUD(); renderInventory(); saveGame();
+}
+document.getElementById('bagbtn').onclick=openInventory;
+document.getElementById('invclose').onclick=closeInventory;
+document.querySelectorAll('.invtab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+
+// ---------- 存档 / 读档 ----------
+const SAVE_KEY='florr_save_v1';
+function snapshot(){
+  return { v:1, level:player.level, xp:player.xp, xpNext:player.xpNext,
+    baseMaxHp:player.baseMaxHp, hp:player.hp, score:player.score, kills:player.kills, gold:player.gold,
+    stats:{...player.stats}, statPoints:player.statPoints,
+    petals: player.petals.map(p=> p? {id:p.id, rar:p.rar} : null),
+    inventory: {...player.inventory}, map: curMap.id, x:Math.round(player.x), y:Math.round(player.y) };
+}
+function saveGame(){ if(!player) return; try{ localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot())); }catch(e){} }
+function loadSaveData(){ try{ return JSON.parse(localStorage.getItem(SAVE_KEY)); }catch(e){ return null; } }
+function hasSave(){ const s=loadSaveData(); return !!(s&&s.v); }
+function continueGame(){
+  const s=loadSaveData(); if(!s){ startGame(); return; }
+  player=freshPlayer();
+  player.level=s.level||1; player.xp=s.xp||0; player.xpNext=s.xpNext||100;
+  player.baseMaxHp=s.baseMaxHp||500; player.score=s.score||0; player.kills=s.kills||0; player.gold=s.gold||0;
+  player.stats=Object.assign({hp:0,atk:0,def:0,spd:0}, s.stats||{}); player.statPoints=s.statPoints||0;
+  player.stunUntil=0; player.slowUntil=0; player.poison=null;
+  player.petals=(s.petals||[]).map(p=> p? makePetal(p.id, p.rar||0) : null);
+  while(player.petals.length<SLOT_COUNT) player.petals.push(null);
+  player.petals.length=SLOT_COUNT;
+  player.inventory=s.inventory||{};
+  recomputeStats(); player.hp=Math.min(player.maxHp, s.hp||player.maxHp);
+  drops=[]; particles=[]; projectiles=[]; firePatches=[]; selectedSlot=null;
+  const mapId=MAPS[s.map]?s.map:'garden';
+  curMap=MAPS[mapId]; WORLD.w=curMap.w; WORLD.h=curMap.h;
+  player.x=clamp(s.x||curMap.w/2,60,curMap.w-60); player.y=clamp(s.y||curMap.h/2,60,curMap.h-60);
+  player.vx=0; player.vy=0; camera.x=player.x; camera.y=player.y;
+  mobs=[]; spawnTimer=0; portalCD=1.0; bossTimer=rand(18,32);
+  for(let i=0;i<Math.floor(curMap.cap*0.7);i++) spawnMob();
+  renderSlots(); updateBadge();
+  document.getElementById('start').classList.add('hidden');
+  document.getElementById('dead').classList.add('hidden');
+  invEl.classList.remove('show'); paused=false;
+  running=true; lastTime=performance.now(); requestAnimationFrame(frame);
+  showHint(`读档成功！欢迎回来，Lv.${player.level} 🌸`);
+}
+
+// ---------- 启动 / 复活 ----------
+function startGame(){   // 全新开局（主菜单）
+  resetGame(); renderSlots(); updateBadge();
+  document.getElementById('start').classList.add('hidden');
+  document.getElementById('dead').classList.add('hidden');
+  invEl.classList.remove('show'); paused=false;
+  running=true; lastTime=performance.now(); requestAnimationFrame(frame);
+  saveGame();
+}
+function respawn(){     // 死亡后复活：保留花瓣/背包/等级/得分，满血回到花园
+  player.hp=player.maxHp; player.hurtFlash=0; player.vx=0; player.vy=0;
+  player.stunUntil=0; player.slowUntil=0; player.poison=null;
+  document.getElementById('dead').classList.add('hidden');
+  invEl.classList.remove('show'); paused=false;
+  running=true; lastTime=performance.now();
+  enterMap('garden', null);
+  requestAnimationFrame(frame);
+  showHint('满血复活！花瓣和等级都还在～');
+}
+document.getElementById('startbtn').onclick=()=>{
+  if(hasSave() && !confirm('开始新游戏会覆盖现有存档，确定吗？')) return;
+  startGame();
+};
+document.getElementById('continuebtn').onclick=continueGame;
+document.getElementById('respawnbtn').onclick=respawn;
+
+// 关闭/切后台时存档
+addEventListener('beforeunload', ()=>{ if(running) saveGame(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && running) saveGame(); });
+
+// 主菜单：有存档就显示"继续存档"，并把新游戏按钮改名
+(function initMenu(){
+  if(hasSave()){
+    const s=loadSaveData();
+    const cb=document.getElementById('continuebtn');
+    cb.style.display='inline-block';
+    cb.textContent=`继续存档（Lv.${s.level||1}）`;
+    document.getElementById('startbtn').textContent='开始新游戏';
+  }
+})();
+
+mouse.sx=innerWidth/2; mouse.sy=innerHeight/2;
+</script>
+</body>
+</html>
