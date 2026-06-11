@@ -194,9 +194,9 @@ const PETALS = [
   { id:'wing',   name:'天翼',   color:'#ffe27a', dmg:30, hp:26, reload:1.0, glow:true, desc:'又强又快又结实的高级花瓣，会发光。' },
   { id:'flame',  name:'烈焰',   color:'#ff6a3d', dmg:20, hp:14, reload:1.1, poison:{dps:22,dur:2}, glow:true, desc:'灼烧虫子，命中后剧烈持续掉血。' },
   // 五行属性花瓣
-  { id:'ewood',  name:'雷木',   color:'#8be34a', dmg:14, hp:10, reload:1.3, elem:'wood',  stun:0.7,            desc:'木系·命中触发闪电，短暂【眩晕】敌人。' },
+  { id:'ewood',  name:'雷木',   color:'#8be34a', dmg:14, hp:10, reload:1.3, elem:'wood',  stun:1.0,            desc:'木系·命中触发闪电，短暂【眩晕】敌人。' },
   { id:'efire',  name:'炎心',   color:'#ff7a2b', dmg:16, hp:10, reload:1.2, elem:'fire',  burn:{dps:30,dur:3}, glow:true, desc:'火系·点燃敌人，持续【灼烧】掉血。' },
-  { id:'ewater', name:'寒冰',   color:'#46c2ff', dmg:12, hp:12, reload:1.2, elem:'water', slow:1.5,            desc:'水系·命中【冰冻】敌人，移动变慢。' },
+  { id:'ewater', name:'寒冰',   color:'#46c2ff', dmg:12, hp:12, reload:1.2, elem:'water', slow:2.2,            desc:'水系·命中【冰冻】敌人，移动变慢。' },
   { id:'emetal', name:'锋金',   color:'#ffd24a', dmg:30, hp:8,  reload:1.5, elem:'metal', crit:2.0,  glow:true, desc:'金系·有几率【暴击】造成双倍穿刺伤害。' },
   { id:'eearth', name:'毒土',   color:'#b07a3d', dmg:10, hp:14, reload:1.4, elem:'earth', poison:{dps:26,dur:4}, desc:'土系·释放毒雾，长时间【中毒】减血。' },
 ];
@@ -310,6 +310,16 @@ const MOBS = {
   rat:        { name:'老鼠',     color:'#9a9a9a', accent:'#5a5a5a', r:22, hp:280, dmg:30, speed:96,  xp:120, score:8,  ai:'chase',  drop:0.6,  shape:'oval',  tier:3 },
   roach:      { name:'蟑螂',     color:'#5a3a1a', accent:'#2a1a08', r:20, hp:240, dmg:26, speed:130, xp:110, score:8,  ai:'chase',  drop:0.58, shape:'oval',  tier:3 },
   slug:       { name:'鼻涕虫',   color:'#7eb86a', accent:'#4a7a3a', r:26, hp:520, dmg:24, speed:26,  xp:150, score:10, ai:'tank',   drop:0.7,  shape:'blob',  tier:3, glow:true },
+  // 五行元素精灵：每张地图都会出现，远程释放对应属性攻击，掉落偏向自己的属性花瓣
+  thundersprite:{ name:'雷灵', color:'#8be34a', accent:'#4a8a1a', r:20, hp:150, dmg:16, speed:78, xp:60, score:5, ai:'chase', drop:0.6, shape:'diamond', tier:2, glow:true, elem:'wood',  elemDrop:'ewood' },
+  firesprite:  { name:'火灵', color:'#ff6a3d', accent:'#8a2a08', r:20, hp:160, dmg:18, speed:66, xp:60, score:5, ai:'chase', drop:0.6, shape:'round',   tier:2, glow:true, elem:'fire',  elemDrop:'efire' },
+  icesprite:   { name:'冰灵', color:'#46c2ff', accent:'#1a5a8a', r:20, hp:170, dmg:14, speed:60, xp:60, score:5, ai:'chase', drop:0.6, shape:'diamond', tier:2, glow:true, elem:'water', elemDrop:'ewater' },
+  metalsprite: { name:'金灵', color:'#ffd24a', accent:'#8a6a10', r:18, hp:130, dmg:24, speed:84, xp:65, score:5, ai:'chase', drop:0.6, shape:'spiky',   tier:2, glow:true, elem:'metal', elemDrop:'emetal' },
+  poisonsprite:{ name:'毒灵', color:'#b07a3d', accent:'#5a3a10', r:22, hp:180, dmg:14, speed:54, xp:60, score:5, ai:'chase', drop:0.6, shape:'blob',    tier:2, glow:true, elem:'earth', elemDrop:'eearth' },
+  // 守关塔：把守通往更深地图的传送门，不会移动，打掉才放行
+  tower: { name:'守关塔', color:'#8a93a6', accent:'#5a6678', r:34, hp:900, dmg:24, speed:0, xp:500, score:40, ai:'tower', drop:1, shape:'tower', tier:3 },
+  // 镜像小花：不定时复制玩家（血量上限、花瓣配置完全一样），打败可抢回它的花瓣
+  mirror: { name:'镜像小花', color:'#ff9aa8', accent:'#a83a50', r:22, hp:500, dmg:22, speed:200, xp:220, score:15, ai:'chase', drop:1, shape:'round', tier:3 },
 };
 // 生物攻击的五行元素（决定命中玩家时附加什么状态）
 const MOB_ELEM = {
@@ -345,7 +355,16 @@ const RANGED = {
   jellyfish:{ range:380, cd:2.0, pdmg:18, pspeed:240, pr:8, pcolor:'#ffd0e6' },
   demon:    { range:600, cd:1.3, pdmg:32, pspeed:340, pr:9, pcolor:'#ff7a3d', glow:true },
   scorpion: { range:320, cd:2.3, pdmg:20, pspeed:300, pr:6, pcolor:'#e8d28a' },
+  // 五行精灵的属性攻击
+  thundersprite:{ range:480, cd:2.2, pdmg:16, pspeed:430, pr:6, glow:true },  // ⚡闪电箭→眩晕
+  firesprite:   { range:420, cd:2.4, pdmg:18, pspeed:260, pr:8, glow:true },  // 🔥火球→落地燃烧
+  icesprite:    { range:440, cd:2.0, pdmg:14, pspeed:300, pr:7, glow:true },  // ❄️冰晶→减速
+  metalsprite:  { range:500, cd:2.6, pdmg:22, pspeed:460, pr:5, glow:true },  // ⚔️穿刺镖→暴击+穿透花瓣
+  poisonsprite: { range:400, cd:2.2, pdmg:13, pspeed:240, pr:9, glow:true },  // ☠️毒雾球→中毒
+  tower:        { range:620, cd:0.9, pdmg:26, pspeed:340, pr:7, pcolor:'#cfd8e3', burst:20, spread:0.314, pierce:true },  // 🏰守关塔：20发环形弹幕，穿透花瓣
 };
+// Boss 专属弹幕：7 发扇形、高频高伤、穿透花瓣
+const BOSS_BARRAGE = { pdmg:16, pspeed:380, pr:8, burst:7, spread:0.13, pierce:true, glow:true, pcolor:'#ff6a9a' };
 for(const k in RANGED){ MOBS[k].atk='ranged'; MOBS[k].atkData=RANGED[k]; }
 // 冲刺攻击：靠近后猛地扑向玩家
 const CHARGER = {
@@ -387,6 +406,9 @@ const MAPS = {
     portals:[ {x:800,y:800, to:'jungle', color:'#4bbf5a', label:'丛林 🌴'} ] },
 };
 for(const k in MAPS) MAPS[k].id = k;   // 让每张地图知道自己的 id（落点定位用）
+// 五行元素精灵：每张地图都额外刷这 5 种（约占刷怪量的 1/4，阶级随地图深度变强）
+const SPRITES=[['thundersprite',0.8],['firesprite',0.8],['icesprite',0.8],['metalsprite',0.8],['poisonsprite',0.8]];
+for(const k in MAPS) MAPS[k].types.push(...SPRITES.map(s=>[...s]));
 // 进入门槛：等级越高才能去越深的地图（怪更强、奖励更高）
 const MAP_MINLV = { garden:1, desert:4, ocean:8, jungle:14, hel:22, pyramid:7, sewers:11 };
 for(const k in MAPS) MAPS[k].minLevel = MAP_MINLV[k];
@@ -395,8 +417,8 @@ const MAP_RARBASE = { garden:0, desert:2, ocean:3, jungle:5, hel:7, pyramid:3, s
 for(const k in MAPS) MAPS[k].rarBase = MAP_RARBASE[k];
 
 // ---------- 状态 ----------
-let player, mobs, drops, particles, projectiles, firePatches;
-let saveTimer = 0, bossTimer = 0;
+let player, mobs, drops, particles, projectiles, firePatches, blasts;
+let saveTimer = 0, bossTimer = 0, mirrorTimer = 0;
 let renderNow = 0;
 let camera = { x:0, y:0 };
 let mouse = { x:0, y:0, sx:0, sy:0, left:false, right:false };
@@ -422,6 +444,7 @@ function freshPlayer(){
     inventory:{},   // 'id#rar' -> 数量（备用花瓣）
     stats:{ hp:0, atk:0, def:0, spd:0 }, statPoints:0,   // 可自由分配的属性点
     stunUntil:0, slowUntil:0, poison:null,               // 受到的状态效果
+    towers:{},      // 已摧毁的守关塔（'地图>目标地图' -> true，永久开门）
   };
   return p;
 }
@@ -448,7 +471,7 @@ function recomputeStats(){
 
 function resetGame(){
   player = freshPlayer();
-  drops=[]; particles=[]; projectiles=[]; firePatches=[]; selectedSlot=null;
+  drops=[]; particles=[]; projectiles=[]; firePatches=[]; blasts=[]; selectedSlot=null;
   recomputeStats();
   enterMap('garden', null);   // 从花园开始
 }
@@ -466,9 +489,10 @@ function enterMap(id, fromId){
   } else { player.x = curMap.w/2; player.y = curMap.h/2; }
   player.vx=0; player.vy=0;
   camera.x=player.x; camera.y=player.y;
-  mobs=[]; projectiles=[]; firePatches=[]; spawnTimer=0; portalCD=1.3; bossTimer=rand(18,32);
+  mobs=[]; projectiles=[]; firePatches=[]; blasts=[]; spawnTimer=0; portalCD=1.3; bossTimer=rand(18,32); mirrorTimer=rand(30,55);
   const seed = Math.floor(curMap.cap*0.7);
   for(let i=0;i<seed;i++) spawnMob();          // 铺满整张地图
+  spawnTowers();                               // 通往更深地图的门前放守关塔
   if(running) showHint(`进入【${curMap.name}】${curMap.icon}`);
   updateHUD();
 }
@@ -496,10 +520,56 @@ function spawnBoss(){
   const hp=Math.round(t.hp*mobHpMult(rar)*7);   // 血量厚得多
   const resists=['none','wood','fire','water','metal','earth'];
   const resist=resists[Math.floor(Math.random()*resists.length)];
+  const elems=['wood','fire','water','metal','earth'];
+  const aoeElem=t.elem || elems[Math.floor(Math.random()*elems.length)];   // 每个Boss都有一种AOE魔法属性
   mobs.push({ type,x,y,vx:0,vy:0,r:t.r*2,rar,hp,maxHp:hp,angry:true,
     wanderA:Math.random()*Math.PI*2,wanderT:0,hitFlash:0,poison:null,burn:null,stun:0,slowUntil:0,
-    atkCd:rand(0.5,1.5), dashT:0, dvx:0, dvy:0, boss:true, resist });
-  showHint(`⚠️ ${RARITY[rar].name}${t.name}·首领 出现了！（抗性：${elemName(resist)}）`);
+    atkCd:rand(0.5,1.5), dashT:0, dvx:0, dvy:0, boss:true, resist, aoeElem, aoeCd:rand(4,7), aoe:null,
+    barrageCd:rand(1.5,3), summonCd:rand(8,14) });
+  showHint(`⚠️ ${RARITY[rar].name}${t.name}·首领 出现了！（抗性：${elemName(resist)}，会放${elemName(aoeElem)}系大魔法）`);
+}
+// 守关塔：在通往更深地图的传送门前生成（已摧毁过的不再出现）
+function spawnTowers(){
+  for(const pt of curMap.portals){
+    const dest=MAPS[pt.to];
+    if(dest.minLevel <= curMap.minLevel) continue;          // 回头路的门不设塔
+    const key=curMap.id+'>'+pt.to;
+    if(player.towers && player.towers[key]) continue;
+    const t=MOBS.tower;
+    const rar=clamp(dest.rarBase||0,0,MAXRAR);
+    const hp=Math.round(t.hp*mobHpMult(rar));
+    const a=Math.atan2(curMap.h/2-pt.y, curMap.w/2-pt.x);   // 立在门前朝地图中心一侧
+    mobs.push({ type:'tower', x:clamp(pt.x+Math.cos(a)*150,80,WORLD.w-80), y:clamp(pt.y+Math.sin(a)*150,80,WORLD.h-80),
+      vx:0,vy:0,r:t.r,rar,hp,maxHp:hp,angry:false,wanderA:0,wanderT:1e9,hitFlash:0,poison:null,burn:null,stun:0,slowUntil:0,
+      atkCd:1,dashT:0,dvx:0,dvy:0,boss:false,guard:key });
+  }
+}
+// 镜像小花：复制玩家当前的血量上限和整套花瓣（同种同阶）
+function spawnMirror(){
+  const a=Math.random()*Math.PI*2, d=rand(500,800);
+  const mp=player.petals.filter(Boolean).map(pe=>({id:pe.id, rar:pe.rar, x:-1e7, y:0}));
+  const rar=clamp(Math.floor(player.level/4),0,MAXRAR);   // 阶级随玩家等级走，决定经验/金币奖励
+  mobs.push({ type:'mirror', x:clamp(player.x+Math.cos(a)*d,80,WORLD.w-80), y:clamp(player.y+Math.sin(a)*d,80,WORLD.h-80),
+    vx:0,vy:0,r:22,rar,hp:player.maxHp,maxHp:player.maxHp,angry:true,
+    wanderA:0,wanderT:0,hitFlash:0,poison:null,burn:null,stun:0,slowUntil:0,
+    atkCd:1e9,dashT:0,dvx:0,dvy:0,boss:false,mpetals:mp,petalAngle:0,
+    mlevel:player.level, dmgMul:1, lvlT:0 });
+  showHint('👀 你的镜像分身出现了！它跟你一模一样——打败它能抢到它的花瓣！');
+}
+// Boss 召唤术：一次性在身边召唤 15 个元素精灵（五系各 3 个）
+function bossSummon(m){
+  const sprites=['thundersprite','firesprite','icesprite','metalsprite','poisonsprite'];
+  const rar=clamp(m.rar-2,0,MAXRAR);
+  for(let i=0;i<15;i++){
+    const ty=sprites[i%5]; const t=MOBS[ty];
+    const a=i/15*Math.PI*2+rand(-0.1,0.1), d=rand(70,150);
+    const hp=Math.round(t.hp*mobHpMult(rar));
+    mobs.push({ type:ty, x:clamp(m.x+Math.cos(a)*d,60,WORLD.w-60), y:clamp(m.y+Math.sin(a)*d,60,WORLD.h-60),
+      vx:0,vy:0,r:t.r,rar,hp,maxHp:hp,angry:true,wanderA:0,wanderT:0,hitFlash:0,poison:null,burn:null,stun:0,slowUntil:0,
+      atkCd:rand(0.5,2), dashT:0,dvx:0,dvy:0,boss:false });
+  }
+  spawnParticles(m.x,m.y,'#ffffff',26);
+  showHint('⚠️ 首领召唤了 15 个元素精灵护驾！');
 }
 
 // ---------- 工具 ----------
@@ -556,6 +626,8 @@ function update(dt, now){
     if(dist2(p.x,p.y,pt.x,pt.y) < 54*54){
       const dest=MAPS[pt.to];
       if(p.level < dest.minLevel){ showHint(`🔒 需要 Lv.${dest.minLevel} 才能进入【${dest.name}】，先去打怪升级吧！`); portalCD=1.4; break; }
+      const gk=curMap.id+'>'+pt.to;
+      if(mobs.some(mm=>mm.guard===gk&&!mm.dead)){ showHint('🏰 守关塔还在！先打败它才能打开这扇传送门！'); portalCD=1.4; break; }
       enterMap(pt.to, curMap.id); return;
     }
   }
@@ -594,7 +666,7 @@ function update(dt, now){
     const ddx=p.x-m.x, ddy=p.y-m.y, md=Math.hypot(ddx,ddy)||1;
     if(m.atkCd>0) m.atkCd-=dt;
     const mStunned = now < (m.stun||0);
-    const spd = t.speed * (now<(m.slowUntil||0)?0.45:1) * (m.boss?1.15:1);
+    const spd = (m.type==='mirror'? player.speed*0.9 : t.speed) * (now<(m.slowUntil||0)?0.45:1) * (m.boss?1.15:1);
     let chase=false;
     if(t.ai==='chase'||t.ai==='tank') chase=m.angry||md<260;
     if(t.ai==='wander') chase=m.angry&&md<420;
@@ -605,9 +677,48 @@ function update(dt, now){
     // 多样化攻击方式（眩晕时无法攻击）
     if(!mStunned && t.atk==='ranged' && m.atkCd<=0 && md<t.atkData.range){ fireProjectile(m,t.atkData); m.atkCd=t.atkData.cd; m.angry=true; }
     if(!mStunned && t.atk==='charge' && m.atkCd<=0 && m.dashT<=0 && md<t.atkData.range){ m.dvx=ddx/md*t.atkData.dashSpeed; m.dvy=ddy/md*t.atkData.dashSpeed; m.dashT=t.atkData.dashTime; m.atkCd=t.atkData.cd; m.angry=true; }
+    // Boss 大范围 AOE 魔法：锁定玩家当前位置出警告圈，1.1 秒后爆炸（穿透花瓣直接命中，快跑出圈！）
+    if(m.boss){
+      // 高频穿透弹幕（7发扇形）
+      m.barrageCd=(m.barrageCd!=null?m.barrageCd:rand(1.5,3))-dt;
+      if(!mStunned && m.barrageCd<=0 && md<680){ fireProjectile(m, BOSS_BARRAGE); m.barrageCd=1.8; }
+      // 定时召唤 15 个元素精灵
+      m.summonCd=(m.summonCd!=null?m.summonCd:rand(8,14))-dt;
+      if(!mStunned && m.summonCd<=0 && md<800){ bossSummon(m); m.summonCd=rand(14,20); }
+      if(!m.aoe){ m.aoeCd-=dt; if(!mStunned && m.aoeCd<=0 && md<700){ m.aoe={x:p.x,y:p.y,r:240+m.rar*8,fireAt:now+1100}; } }
+      else if(now>=m.aoe.fireAt){
+        const A=m.aoe, ec=ELEM[m.aoeElem].color;
+        blasts.push({x:A.x,y:A.y,r:A.r,color:ec,until:now+380});
+        spawnParticles(A.x,A.y,ec,26);
+        if(m.aoeElem==='fire') firePatches.push({x:A.x,y:A.y,r:95,dps:28+m.rar*4,until:now+3500});
+        if(dist2(p.x,p.y,A.x,A.y)<(A.r+p.r)*(A.r+p.r)){
+          const reduce=p.mode==='defense'?0.45:1;
+          hurt(mobAtk(m)*2.5*reduce);   // 大威力魔法：吃满几乎致命，看到圈必须跑！
+          applyElemToPlayer(m.aoeElem, true, m.rar, now, p.x, p.y);
+        }
+        m.aoe=null; m.aoeCd=rand(6,9);
+      }
+    }
     m.x=clamp(m.x+m.vx*dt,m.r,WORLD.w-m.r);
     m.y=clamp(m.y+m.vy*dt,m.r,WORLD.h-m.r);
     if(m.hitFlash>0) m.hitFlash-=dt;
+
+    // 镜像小花：自己的花瓣环绕旋转，扫到玩家会持续掉血；而且它会自己升级越来越强
+    if(m.type==='mirror' && m.mpetals && m.mpetals.length){
+      m.lvlT=(m.lvlT||0)+dt;
+      if(m.lvlT>=10){ m.lvlT-=10; m.mlevel=(m.mlevel||1)+1; m.dmgMul=(m.dmgMul||1)*1.08;
+        m.maxHp=Math.round(m.maxHp*1.1); m.hp=Math.min(m.maxHp, m.hp+Math.round(m.maxHp*0.25));
+        spawnParticles(m.x,m.y,'#ff9aa8',14);
+        showHint(`👀 镜像小花升到 Lv.${m.mlevel}，越拖越强，快解决它！`); }
+      m.petalAngle+=2.8*dt;
+      const mn=m.mpetals.length;
+      for(let mi=0;mi<mn;mi++){ const mpet=m.mpetals[mi];
+        const ma=m.petalAngle+mi/mn*Math.PI*2;
+        mpet.x=m.x+58*Math.cos(ma); mpet.y=m.y+58*Math.sin(ma);
+        const mrr=11+p.r;
+        if(dist2(mpet.x,mpet.y,p.x,p.y)<mrr*mrr) hurt(pDmg(mpet)*(m.dmgMul||1)*dt*1.6);
+      }
+    }
 
     // 中毒 / 灼烧结算
     if(m.poison){ if(now<m.poison.until){ m.hp-=m.poison.dps*dt; if(m.hp<=0){ killMob(m); continue; } } else m.poison=null; }
@@ -653,12 +764,21 @@ function update(dt, now){
       applyElemToPlayer(pr.elem, pr.boss, pr.rar, now, pr.x, pr.y);
       spawnParticles(pr.x,pr.y,pr.color,4); gone=true;
     }
-    if(gone) projectiles.splice(i,1);
+    if(gone){
+      // 火系射弹消失处在地面留下一片燃烧区域
+      if(pr.elem==='fire') firePatches.push({x:pr.x,y:pr.y,r:56,dps:16+(pr.rar||0)*4,until:now+3200});
+      projectiles.splice(i,1);
+    }
   }
   // 地面火焰：到时清除
   for(let i=firePatches.length-1;i>=0;i--){ if(now>firePatches[i].until) firePatches.splice(i,1); }
   // 随机刷 Boss（同地图同时最多 1 只）
   bossTimer-=dt; if(bossTimer<=0){ if(!mobs.some(mm=>mm.boss && !mm.dead)) spawnBoss(); bossTimer=rand(25,45); }
+  // 不定时复制镜像小花（每次复制一个，场上最多同时 1 个）
+  mirrorTimer-=dt; if(mirrorTimer<=0){
+    if(!mobs.some(mm=>mm.type==='mirror'&&!mm.dead) && player.petals.some(Boolean)) spawnMirror();
+    mirrorTimer=rand(40,70);
+  }
 
   // 掉落
   for (let i=drops.length-1;i>=0;i--){
@@ -690,13 +810,15 @@ function fireProjectile(m, ad){
   const a=Math.atan2(player.y-m.y, player.x-m.x);
   const e=MOBS[m.type].elem||'none';
   const n=ad.burst||1; let dmg=ad.pdmg*mobDmgMult(m.rar)*(m.boss?1.8:1);
-  if(e==='metal') dmg*=1.4;                  // 金系穿刺更疼
+  if(e==='metal'){ dmg*=1.4; if(Math.random()<0.3) dmg*=2; }   // 金系穿刺更疼，30% 暴击双倍
   const col = e!=='none' ? ELEM[e].color : (ad.pcolor||'#fff');
-  for(let i=0;i<n;i++){ const sp=a+(i-(n-1)/2)*0.2;
+  const spread=ad.spread||0.2;
+  const fullRing = spread*n >= 6.2;   // 全环弹幕从正对玩家起排（保证有一发瞄准），扇形弹幕居中对准
+  for(let i=0;i<n;i++){ const sp = fullRing ? a+i*spread : a+(i-(n-1)/2)*spread;
     projectiles.push({ x:m.x+Math.cos(sp)*m.r, y:m.y+Math.sin(sp)*m.r,
       vx:Math.cos(sp)*ad.pspeed, vy:Math.sin(sp)*ad.pspeed,
       dmg, r:(ad.pr||6)*(m.boss?1.6:1), color:col, glow:ad.glow||e!=='none', life:2.4,
-      elem:e, pierce:(e==='metal'), boss:m.boss, rar:m.rar }); }
+      elem:e, pierce:(e==='metal')||!!ad.pierce, boss:m.boss, rar:m.rar }); }
 }
 // 生物攻击力（含阶级与 Boss 加成）
 function mobAtk(m){ return MOBS[m.type].dmg * mobDmgMult(m.rar) * (m.boss?1.8:1); }
@@ -712,13 +834,13 @@ function applyPetalElem(m, pet, now){
 }
 // 生物元素效果作用到玩家身上（眩晕/减速/中毒/地面火焰）
 function applyElemToPlayer(elem, boss, rar, now, x, y){
-  if(elem==='wood') player.stunUntil=Math.max(player.stunUntil, now+(boss?900:520));
-  else if(elem==='water') player.slowUntil=Math.max(player.slowUntil, now+1300);
-  else if(elem==='earth') player.poison={dps:(boss?40:16)+rar*4, until:now+2500};
-  else if(elem==='fire') firePatches.push({x,y,r:48,dps:(boss?42:20)+rar*4,until:now+2600});
+  if(elem==='wood') player.stunUntil=Math.max(player.stunUntil, now+(boss?1500:950));
+  else if(elem==='water') player.slowUntil=Math.max(player.slowUntil, now+2400);
+  else if(elem==='earth') player.poison={dps:(boss?40:16)+rar*4, until:now+4000};
+  else if(elem==='fire') firePatches.push({x,y,r:60,dps:(boss?42:20)+rar*4,until:now+3500});
 }
 
-function knock(m,fx,fy,force){ const dx=m.x-fx,dy=m.y-fy,d=Math.hypot(dx,dy)||1; m.x=clamp(m.x+dx/d*force*0.019,m.r,WORLD.w-m.r); m.y=clamp(m.y+dy/d*force*0.019,m.r,WORLD.h-m.r); }
+function knock(m,fx,fy,force){ if(MOBS[m.type].speed===0) return; const dx=m.x-fx,dy=m.y-fy,d=Math.hypot(dx,dy)||1; m.x=clamp(m.x+dx/d*force*0.019,m.r,WORLD.w-m.r); m.y=clamp(m.y+dy/d*force*0.019,m.r,WORLD.h-m.r); }
 
 function killMob(m){
   if(m.dead) return;
@@ -729,6 +851,16 @@ function killMob(m){
   player.kills++; player.score+=sc; player.gold+=sc; gainXP(t.xp*mobXpMult(m.rar)*bossMul);
   spawnParticles(m.x,m.y,t.color,m.boss?28:12);
   if(m.boss) showHint(`🏆 击败首领！大量奖励到手 +${sc}🪙`);
+  if(m.guard){ player.towers[m.guard]=true; showHint('🏰 守关塔被摧毁，这扇传送门永久开启！'); saveGame(); }
+  // 镜像小花：掉落它身上的 2 片花瓣（就是你的同款）
+  if(m.type==='mirror'){
+    const src=m.mpetals||[];
+    for(let i=0;i<2 && src.length;i++){ const pick=src[Math.floor(Math.random()*src.length)];
+      const a2=Math.random()*6.283, dd=rand(8,40);
+      drops.push({ id:pick.id, rar:pick.rar, x:m.x+Math.cos(a2)*dd, y:m.y+Math.sin(a2)*dd, t:0, bob:0 }); }
+    showHint('👀 打败了镜像分身，抢回它的花瓣！');
+    return;
+  }
   // 多花瓣掉落：越强的怪掉的次数越多；Boss 掉更多更好
   const tries = (t.tier+1)*(m.boss?3:1);
   for(let i=0;i<tries;i++){
@@ -744,8 +876,9 @@ function weighted(table){ // [[id,weight],...]
   return table[0][0];
 }
 function rollDrop(type, crar=0){
-  const tier=MOBS[type].tier;
-  const id=weighted(LOOT[tier] || LOOT[1]);
+  const t=MOBS[type];
+  // 元素精灵 70% 掉自己的属性花瓣
+  const id=(t.elemDrop && Math.random()<0.7) ? t.elemDrop : weighted(LOOT[t.tier] || LOOT[1]);
   const rar=rollDropRarity(crar);
   return { id, rar };
 }
@@ -795,10 +928,25 @@ function render(now){
   ctx.setTransform(1,0,0,1,camX,camY);
   drawWorld();
   for(const pt of curMap.portals) drawPortal(pt, now);
-  // 地面火焰
-  for(const fp of firePatches){ const k=Math.max(0,(fp.until-now)/2600);
-    ctx.globalAlpha=0.25+0.25*k; ctx.fillStyle='#ff6a2b'; ctx.beginPath(); ctx.arc(fp.x,fp.y,fp.r,0,7); ctx.fill();
-    ctx.globalAlpha=0.5*k; ctx.fillStyle='#ffd23a'; ctx.beginPath(); ctx.arc(fp.x,fp.y,fp.r*0.6,0,7); ctx.fill(); ctx.globalAlpha=1; }
+  // 地面火焰（三层跳动火光，醒目）
+  for(const fp of firePatches){ const k=Math.max(0,(fp.until-now)/3500);
+    const fl=0.8+Math.sin(now*0.02+fp.x)*0.2;
+    ctx.globalAlpha=(0.4+0.25*k)*fl; ctx.fillStyle='#ff5a1a'; ctx.beginPath(); ctx.arc(fp.x,fp.y,fp.r*(0.92+0.08*fl),0,7); ctx.fill();
+    ctx.globalAlpha=(0.3+0.45*k)*fl; ctx.fillStyle='#ffb53a'; ctx.beginPath(); ctx.arc(fp.x,fp.y,fp.r*0.62,0,7); ctx.fill();
+    ctx.globalAlpha=0.55*k*fl; ctx.fillStyle='#fff3a0'; ctx.beginPath(); ctx.arc(fp.x,fp.y,fp.r*0.3,0,7); ctx.fill();
+    ctx.globalAlpha=1; }
+  // Boss AOE：警告圈（虚线圈 + 渐涨的内圆，赶紧跑出去）
+  for(const m of mobs){ if(m.boss&&m.aoe){ const A=m.aoe; const prog=clamp(1-(A.fireAt-now)/1100,0,1);
+    const c=ELEM[m.aoeElem].color;
+    ctx.globalAlpha=.22; ctx.fillStyle=c; ctx.beginPath(); ctx.arc(A.x,A.y,A.r*prog,0,7); ctx.fill();
+    ctx.globalAlpha=.85; ctx.strokeStyle=c; ctx.lineWidth=4; ctx.setLineDash([14,9]);
+    ctx.beginPath(); ctx.arc(A.x,A.y,A.r,0,7); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1; } }
+  // 爆炸冲击波
+  for(let i=blasts.length-1;i>=0;i--){ const b=blasts[i]; if(now>b.until){ blasts.splice(i,1); continue; }
+    const k=clamp((b.until-now)/380,0,1);
+    ctx.globalAlpha=k*.75; ctx.strokeStyle=b.color; ctx.lineWidth=10*k+3;
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r*(1.18-k*0.18),0,7); ctx.stroke();
+    ctx.globalAlpha=k*.3; ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill(); ctx.globalAlpha=1; }
   for(const dr of drops) drawDrop(dr);
   // 只画视野内的怪（大地图省性能）
   const vL=camera.x-canvas.width/2-80, vR=camera.x+canvas.width/2+80, vT=camera.y-canvas.height/2-80, vB=camera.y+canvas.height/2+80;
@@ -808,6 +956,11 @@ function render(now){
   for(const pa of particles){ ctx.globalAlpha=Math.max(0,pa.life/pa.maxLife); ctx.fillStyle=pa.color; ctx.beginPath(); ctx.arc(pa.x,pa.y,pa.r,0,7); ctx.fill(); }
   ctx.globalAlpha=1;
   if(player.hurtFlash>0){ ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle=`rgba(255,0,0,${player.hurtFlash*0.6})`; ctx.fillRect(0,0,canvas.width,canvas.height); }
+  // 中状态时的全屏色调（叠加，让孩子一眼知道自己中了什么）
+  ctx.setTransform(1,0,0,1,0,0);
+  if(player.poison&&now<player.poison.until){ ctx.fillStyle='rgba(80,200,60,.10)'; ctx.fillRect(0,0,canvas.width,canvas.height); }
+  if(now<player.slowUntil){ ctx.fillStyle='rgba(70,160,255,.12)'; ctx.fillRect(0,0,canvas.width,canvas.height); }
+  if(now<player.stunUntil){ ctx.fillStyle='rgba(255,220,60,.14)'; ctx.fillRect(0,0,canvas.width,canvas.height); }
   drawMinimap();
 }
 function drawWorld(){
@@ -839,6 +992,19 @@ function drawFlower(p,now){
   ctx.strokeStyle='#3a2a10'; ctx.lineWidth=2.5;
   ctx.beginPath(); ctx.arc(ox,3+oy,7,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
   ctx.restore();
+  // 玩家中状态时的醒目提示：脉冲彩色光环 + 头顶大图标
+  const effs=[];
+  if(now<p.stunUntil) effs.push(['#ffe24a','⚡']);
+  if(now<p.slowUntil) effs.push(['#46c2ff','❄️']);
+  if(p.poison&&now<p.poison.until) effs.push(['#7ed957','☠️']);
+  if(effs.length){
+    const pulse=2+Math.sin(now*0.012)*2.5;
+    effs.forEach((e,i)=>{ ctx.strokeStyle=e[0]; ctx.lineWidth=4; ctx.globalAlpha=.8;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r+9+i*7+pulse,0,7); ctx.stroke(); });
+    ctx.globalAlpha=1; ctx.font='24px sans-serif'; ctx.textAlign='center';
+    effs.forEach((e,i)=>{ ctx.fillText(e[1], p.x+(i-(effs.length-1)/2)*28, p.y-p.r-20-Math.abs(Math.sin(now*0.008))*7); });
+    ctx.textAlign='left';
+  }
 }
 // 外观装饰：身体后面的（翅膀/多足）
 function decoBack(t,r,ang,now){
@@ -866,12 +1032,113 @@ function decoFront(t,r,ang,col){
     for(const s of [-1,1]){ ctx.beginPath(); ctx.arc(r*1.05, s*r*0.6, r*0.33, 0,7); ctx.fill(); ctx.stroke(); } ctx.restore();
   }
 }
+// 五行精灵专属形态：闪电球 / 火焰 / 雪花 / 手里剑 / 毒云，与普通生物明显不同
+function drawElemSprite(m,t,r,flash){
+  const now=renderNow, col=flash?'#fff':t.color;
+  switch(t.elem){
+    case 'wood': { // ⚡雷灵：发光球 + 闪电符号 + 环绕电弧
+      ctx.fillStyle=col; ctx.beginPath(); ctx.arc(0,0,r*0.9,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,r*0.9,0,7); ctx.stroke();
+      ctx.fillStyle=flash?'#ffff8a':'#fffb8a';
+      ctx.beginPath(); ctx.moveTo(-r*0.12,-r*0.6); ctx.lineTo(r*0.3,-r*0.08); ctx.lineTo(r*0.05,-r*0.08);
+      ctx.lineTo(r*0.2,r*0.55); ctx.lineTo(-r*0.3,r*0.02); ctx.lineTo(-r*0.05,0); ctx.closePath(); ctx.fill();
+      const a=now*0.01; ctx.strokeStyle='#d6ff7a'; ctx.lineWidth=2.5;
+      for(let i=0;i<3;i++){ ctx.beginPath(); ctx.arc(0,0,r*1.3, a+i*2.1, a+i*2.1+0.8); ctx.stroke(); }
+      break; }
+    case 'fire': { // 🔥火灵：摇曳的火焰形 + 黄色内焰
+      const fl=Math.sin(now*0.012)*r*0.12;
+      ctx.fillStyle=col;
+      ctx.beginPath();
+      ctx.moveTo(0,-r*1.35+fl);
+      ctx.quadraticCurveTo(r*0.9,-r*0.3, r*0.62,r*0.55);
+      ctx.quadraticCurveTo(r*0.45,r*1.0, 0,r*0.95);
+      ctx.quadraticCurveTo(-r*0.45,r*1.0, -r*0.62,r*0.55);
+      ctx.quadraticCurveTo(-r*0.9,-r*0.3, 0,-r*1.35+fl);
+      ctx.fill(); ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=2.5; ctx.stroke();
+      ctx.fillStyle=flash?'#fff':'#ffd23a';
+      ctx.beginPath(); ctx.moveTo(0,-r*0.6-fl); ctx.quadraticCurveTo(r*0.4,0, 0,r*0.62); ctx.quadraticCurveTo(-r*0.4,0, 0,-r*0.6-fl); ctx.fill();
+      break; }
+    case 'water': { // ❄️冰灵：缓慢旋转的六角雪花晶体
+      ctx.strokeStyle=col; ctx.lineWidth=4; ctx.lineCap='round';
+      const a0=now*0.0015;
+      for(let i=0;i<6;i++){ const a=a0+i*Math.PI/3;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*r*1.2,Math.sin(a)*r*1.2); ctx.stroke();
+        const bx=Math.cos(a)*r*0.7, by=Math.sin(a)*r*0.7;
+        for(const s of [-1,1]){ const ba=a+s*0.6; ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+Math.cos(ba)*r*0.35,by+Math.sin(ba)*r*0.35); ctx.stroke(); } }
+      ctx.lineCap='butt';
+      ctx.fillStyle=flash?'#fff':'rgba(225,247,255,.95)'; ctx.beginPath(); ctx.arc(0,0,r*0.42,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.2)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,r*0.42,0,7); ctx.stroke();
+      break; }
+    case 'metal': { // ⚔️金灵：持续旋转的四角手里剑
+      ctx.save(); ctx.rotate(now*0.004);
+      ctx.fillStyle=col; ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=2.5;
+      ctx.beginPath();
+      for(let i=0;i<4;i++){ const a=i*Math.PI/2;
+        ctx.lineTo(Math.cos(a)*r*1.45, Math.sin(a)*r*1.45);
+        ctx.lineTo(Math.cos(a+Math.PI/4)*r*0.42, Math.sin(a+Math.PI/4)*r*0.42); }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=flash?'#fff':'#8a6a10'; ctx.beginPath(); ctx.arc(0,0,r*0.3,0,7); ctx.fill();
+      ctx.restore();
+      break; }
+    case 'earth': { // ☠️毒灵：多团毒云 + 不断上升的毒泡
+      ctx.fillStyle=col; ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=2.5;
+      const lobes=[[0,-r*0.3,r*0.6],[-r*0.55,r*0.15,r*0.5],[r*0.55,r*0.15,r*0.5],[0,r*0.3,r*0.55]];
+      for(const lb of lobes){ ctx.beginPath(); ctx.arc(lb[0],lb[1],lb[2],0,7); ctx.fill(); ctx.stroke(); }
+      ctx.fillStyle='rgba(170,230,120,.85)';
+      for(let i=0;i<3;i++){ const ph=((now*0.001+i*0.33)%1); const by=r*0.6-ph*r*1.9; const bx=Math.sin(now*0.002+i*2)*r*0.45;
+        ctx.globalAlpha=1-ph; ctx.beginPath(); ctx.arc(bx,by,3+i*1.5,0,7); ctx.fill(); }
+      ctx.globalAlpha=1;
+      break; }
+  }
+  // 闪耀星光：环绕身体的四芒星，一闪一闪（元素精灵的标志）
+  for(let i=0;i<4;i++){
+    const a=now*0.003+i*1.5708, rr=r*1.55;
+    const sx=Math.cos(a)*rr, sy=Math.sin(a)*rr;
+    const tw=Math.abs(Math.sin(now*0.012+i*1.3));
+    ctx.globalAlpha=tw*0.95; ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
+    const s=2+tw*3.5;
+    ctx.beginPath(); ctx.moveTo(sx-s,sy); ctx.lineTo(sx+s,sy); ctx.moveTo(sx,sy-s); ctx.lineTo(sx,sy+s); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+// 镜像小花：和玩家长得几乎一样，但是粉红色+坏笑表情
+function drawMirror(m){
+  for(const mp of (m.mpetals||[])){
+    if(mp.x<-1e6) continue;
+    const t=petalById(mp.id); const rc=RARITY[mp.rar].color;
+    ctx.fillStyle=t.color; ctx.beginPath(); ctx.arc(mp.x,mp.y,10,0,7); ctx.fill();
+    ctx.strokeStyle=rc; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(mp.x,mp.y,10,0,7); ctx.stroke();
+  }
+  ctx.save(); ctx.translate(m.x,m.y);
+  ctx.shadowColor='#ff5a8a'; ctx.shadowBlur=14;
+  ctx.fillStyle=m.hitFlash>0?'#fff':'#ff9aa8'; ctx.strokeStyle='#a83a50'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.arc(0,0,m.r,0,7); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur=0;
+  // 坏笑表情：斜眉 + 倒嘴
+  ctx.strokeStyle='#5a1020'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(-11,-9); ctx.lineTo(-4,-5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(11,-9); ctx.lineTo(4,-5); ctx.stroke();
+  ctx.fillStyle='#5a1020';
+  ctx.beginPath(); ctx.arc(-6,-1,2.8,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(6,-1,2.8,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(0,10,6,1.15*Math.PI,1.85*Math.PI); ctx.stroke();
+  ctx.restore();
+  if(m.hp<m.maxHp){ const w=m.r*2; ctx.fillStyle='rgba(0,0,0,.4)'; ctx.fillRect(m.x-w/2,m.y-m.r-12,w,5); ctx.fillStyle='#ff7a9a'; ctx.fillRect(m.x-w/2,m.y-m.r-12,w*Math.max(0,m.hp/m.maxHp),5); }
+  ctx.font='bold 13px sans-serif'; ctx.textAlign='center'; ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.fillStyle='#ffb8cc';
+  const mlbl=`👀 镜像小花 Lv.${m.mlevel||1}`;
+  ctx.strokeText(mlbl, m.x, m.y-m.r-19); ctx.fillText(mlbl, m.x, m.y-m.r-19);
+  ctx.textAlign='left';
+}
 function drawMob(m){
+  if(m.type==='mirror'){ drawMirror(m); return; }
   const t=MOBS[m.type];
   const flash=m.hitFlash>0, col=flash?'#fff':t.color, r=m.r;
   const ang=Math.atan2(m.vy,m.vx);
   ctx.save(); ctx.translate(m.x,m.y);
-  if(t.glow){ ctx.shadowColor=t.color; ctx.shadowBlur=13; }
+  if(t.elemDrop){ ctx.shadowColor=t.color; ctx.shadowBlur=17+Math.sin(renderNow*0.012+m.x*0.01)*8; }  // 元素精灵：呼吸式强光晕
+  else if(t.glow){ ctx.shadowColor=t.color; ctx.shadowBlur=13; }
+  if(t.elemDrop){ drawElemSprite(m,t,r,flash); }
+  else {
   if(t.deco) decoBack(t,r,ang,renderNow);
   ctx.fillStyle=col; ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=3;
   switch(t.shape){
@@ -896,6 +1163,17 @@ function drawMob(m){
       ctx.save(); ctx.rotate(ang);
       for(let s=3;s>=0;s--){ const rr=r*(s===0?1:0.82); ctx.beginPath(); ctx.arc(-s*r*0.78,0,rr,0,7); ctx.fill(); ctx.stroke(); }
       ctx.restore(); break; }
+    case 'tower': {
+      // 守关塔：石质堡垒 + 城齿 + 朝玩家的炮管
+      ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=flash?'#fff':t.accent;
+      for(let i=0;i<8;i++){ const a2=i/8*Math.PI*2; ctx.beginPath(); ctx.arc(Math.cos(a2)*r*0.92,Math.sin(a2)*r*0.92,r*0.16,0,7); ctx.fill(); }
+      const pa=Math.atan2(player.y-m.y,player.x-m.x);
+      ctx.strokeStyle=flash?'#fff':'#3a4456'; ctx.lineWidth=9;
+      ctx.beginPath(); ctx.moveTo(Math.cos(pa)*r*0.25,Math.sin(pa)*r*0.25); ctx.lineTo(Math.cos(pa)*r*0.95,Math.sin(pa)*r*0.95); ctx.stroke();
+      ctx.fillStyle=flash?'#fff':'#5a6678'; ctx.beginPath(); ctx.arc(0,0,r*0.42,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,r*0.42,0,7); ctx.stroke();
+      break; }
     default: // round
       ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill(); ctx.stroke();
       if(!flash&&t.accent){ ctx.fillStyle=t.accent;
@@ -904,11 +1182,14 @@ function drawMob(m){
         ctx.beginPath(); ctx.arc(r*0.4,r*0.2,r*0.16,0,7); ctx.fill(); }
   }
   if(t.deco) decoFront(t,r,ang,col);
-  // 眼睛（朝移动方向，让生物更生动）
-  ctx.save(); ctx.rotate(ang);
-  for(const s of [-1,1]){ ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(r*0.42, s*r*0.34, r*0.22,0,7); ctx.fill();
-    ctx.fillStyle='#1a1a1a'; ctx.beginPath(); ctx.arc(r*0.52, s*r*0.34, r*0.11,0,7); ctx.fill(); }
-  ctx.restore();
+  }
+  // 眼睛（朝移动方向；雪花/手里剑/守关塔不画眼睛）
+  if(t.ai!=='tower' && (!t.elemDrop || t.elem==='fire'||t.elem==='earth'||t.elem==='wood')){
+    ctx.save(); ctx.rotate(ang);
+    for(const s of [-1,1]){ ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(r*0.42, s*r*0.34, r*0.22,0,7); ctx.fill();
+      ctx.fillStyle='#1a1a1a'; ctx.beginPath(); ctx.arc(r*0.52, s*r*0.34, r*0.11,0,7); ctx.fill(); }
+    ctx.restore();
+  }
   ctx.shadowBlur=0;
   // 状态染色：中毒绿 / 灼烧橙 / 冰冻蓝 / 眩晕黄
   if(m.poison){ ctx.fillStyle='rgba(120,220,90,.35)'; ctx.beginPath(); ctx.arc(0,0,r+2,0,7); ctx.fill(); }
@@ -919,6 +1200,10 @@ function drawMob(m){
   if(m.boss){ ctx.strokeStyle='#ffd23a'; ctx.lineWidth=5; ctx.globalAlpha=.85; ctx.beginPath(); ctx.arc(0,0,r+10,0,7); ctx.stroke(); ctx.globalAlpha=1; }
   ctx.restore();
   if(m.hp<m.maxHp){ const w=r*2; ctx.fillStyle='rgba(0,0,0,.4)'; ctx.fillRect(m.x-w/2,m.y-r-12,w,5); ctx.fillStyle=m.boss?'#ffd23a':'#7bed7b'; ctx.fillRect(m.x-w/2,m.y-r-12,w*Math.max(0,m.hp/m.maxHp),5); }
+  // 状态图标：眩晕⚡ 灼烧🔥 冰冻❄️ 中毒☠️（醒目地飘在头顶）
+  let sic=''; if(renderNow<(m.stun||0))sic+='⚡'; if(m.burn)sic+='🔥'; if(renderNow<(m.slowUntil||0))sic+='❄️'; if(m.poison)sic+='☠️';
+  if(sic){ ctx.font='16px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(sic, m.x, m.y-r-(m.boss?38:32)-Math.abs(Math.sin(renderNow*0.008))*4); ctx.textAlign='left'; }
   if(m.boss){ ctx.font='bold 14px sans-serif'; ctx.textAlign='center'; ctx.lineWidth=4; ctx.strokeStyle='rgba(0,0,0,.7)'; ctx.fillStyle='#ffd23a';
     const lbl=`👑${RARITY[m.rar].name}${t.name} 抗${elemName(m.resist)}`;
     ctx.strokeText(lbl, m.x, m.y-r-20); ctx.fillText(lbl, m.x, m.y-r-20); ctx.textAlign='left'; }
@@ -942,7 +1227,8 @@ function drawPortal(pt, now){
   ctx.restore();
   ctx.font='bold 22px sans-serif'; ctx.textAlign='center';
   ctx.lineWidth=5; ctx.strokeStyle='rgba(0,0,0,.65)'; ctx.fillStyle=locked?'#cfcfcf':'#fff';
-  const label = locked ? `${pt.label}（需Lv.${dest.minLevel}）` : '▶ '+pt.label;
+  const guarded = !locked && mobs && mobs.some(mm=>mm.guard===(curMap.id+'>'+pt.to) && !mm.dead);
+  const label = locked ? `${pt.label}（需Lv.${dest.minLevel}）` : (guarded ? `🏰 ${pt.label}（先打败守关塔）` : '▶ '+pt.label);
   ctx.strokeText(label, pt.x, pt.y-r-12);
   ctx.fillText(label, pt.x, pt.y-r-12);
   ctx.textAlign='left';
@@ -1120,7 +1406,8 @@ function renderDex(body){
     body.appendChild(sub);
     const grid=document.createElement('div'); grid.className='grid'; body.appendChild(grid);
     for(const [ty] of map.types){ const t=MOBS[ty];
-      const atk = t.atk==='ranged'?'远程射弹':(t.atk==='charge'?'冲刺扑击':'近身碰撞');
+      let atk = t.atk==='ranged'?'远程射弹':(t.atk==='charge'?'冲刺扑击':'近身碰撞');
+      if(t.elem){ const eff={wood:'⚡眩晕',fire:'🔥地面燃烧',water:'❄️减速',metal:'⚔️暴击穿透',earth:'☠️中毒'}[t.elem]; atk+=`（${elemName(t.elem)}系 ${eff}）`; }
       const tier=t.tier, lt=LOOT[tier], tot=lt.reduce((s,e)=>s+e[1],0);
       const lootStr=lt.map(([id,w])=>`${petalById(id).name} ${Math.round(w/tot*100)}%`).join('、');
       const c=document.createElement('div'); c.className='card';
@@ -1202,7 +1489,7 @@ function slotKey(i){ return 'florr_save_v1_s'+i; }
 function snapshot(){
   return { v:1, savedAt:Date.now(), level:player.level, xp:player.xp, xpNext:player.xpNext,
     baseMaxHp:player.baseMaxHp, hp:player.hp, score:player.score, kills:player.kills, gold:player.gold,
-    stats:{...player.stats}, statPoints:player.statPoints,
+    stats:{...player.stats}, statPoints:player.statPoints, towers:{...player.towers},
     petals: player.petals.map(p=> p? {id:p.id, rar:p.rar} : null),
     inventory: {...player.inventory}, map: curMap.id, x:Math.round(player.x), y:Math.round(player.y) };
 }
@@ -1221,19 +1508,21 @@ function continueGame(slot){
   player.level=s.level||1; player.xp=s.xp||0; player.xpNext=s.xpNext||100;
   player.baseMaxHp=s.baseMaxHp||500; player.score=s.score||0; player.kills=s.kills||0; player.gold=s.gold||0;
   player.stats=Object.assign({hp:0,atk:0,def:0,spd:0}, s.stats||{}); player.statPoints=s.statPoints||0;
+  player.towers=s.towers||{};
   player.stunUntil=0; player.slowUntil=0; player.poison=null;
   player.petals=(s.petals||[]).map(p=> p? makePetal(p.id, p.rar||0) : null);
   while(player.petals.length<SLOT_COUNT) player.petals.push(null);
   player.petals.length=SLOT_COUNT;
   player.inventory=s.inventory||{};
   recomputeStats(); player.hp=Math.min(player.maxHp, s.hp||player.maxHp);
-  drops=[]; particles=[]; projectiles=[]; firePatches=[]; selectedSlot=null;
+  drops=[]; particles=[]; projectiles=[]; firePatches=[]; blasts=[]; selectedSlot=null;
   const mapId=MAPS[s.map]?s.map:'garden';
   curMap=MAPS[mapId]; WORLD.w=curMap.w; WORLD.h=curMap.h;
   player.x=clamp(s.x||curMap.w/2,60,curMap.w-60); player.y=clamp(s.y||curMap.h/2,60,curMap.h-60);
   player.vx=0; player.vy=0; camera.x=player.x; camera.y=player.y;
-  mobs=[]; spawnTimer=0; portalCD=1.0; bossTimer=rand(18,32);
+  mobs=[]; spawnTimer=0; portalCD=1.0; bossTimer=rand(18,32); mirrorTimer=rand(30,55);
   for(let i=0;i<Math.floor(curMap.cap*0.7);i++) spawnMob();
+  spawnTowers();
   renderSlots(); updateBadge();
   document.getElementById('start').classList.add('hidden');
   document.getElementById('dead').classList.add('hidden');
