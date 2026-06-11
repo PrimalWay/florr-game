@@ -4,7 +4,9 @@
 
 ## 在线试玩
 
-部署在 GitHub Pages，链接见仓库 Settings → Pages（部署后此处会补上）。
+**https://primalway.github.io/florr-game/**
+
+手机、平板、电脑浏览器都能玩，发链接给同学即可。
 
 ## 每天更新游戏
 
