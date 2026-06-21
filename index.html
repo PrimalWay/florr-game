@@ -169,8 +169,8 @@
     👈 <b>按住左键</b> → 花瓣张开攻击（伤害高）<br />
     👉 <b>按住右键</b> → 花瓣收拢防御（更安全）<br />
     🌼 走到掉落花瓣上 → 自动收进背包 / 空格子<br />
-    🎒 <b>点背包</b>（按 B）→ 背包/商店/熔炉/图鉴四个页面<br />
-    💎 花瓣分 <b>10 阶</b>（普通→…→独特），5 个同种同阶可<b>合成</b>高一阶<br />
+    🎒 <b>点背包</b>（按 B）→ 背包/商店/熔炉/重组机/成就/图鉴<br />
+    💎 5 个同种同阶花瓣可<b>合成</b>更高阶；🔧 <b>重组机</b>放 5 个花瓣换随机花瓣<br />
     🪙 <b>商店</b>买卖花瓣赚金币 · 🔥 <b>熔炉</b>分解花瓣换经验 · 📖 <b>图鉴</b>看生物属性掉率<br />
     🌀 <b>走进传送门</b>去更深地图：沙漠Lv4 · 海洋Lv8 · 丛林Lv14 · 地狱Lv22 · 💀竞技场Lv28 · 🌌星界Lv32（最强！）
   </div>
@@ -192,6 +192,7 @@
   <h1>😵 小花累倒了</h1>
   <p id="deadinfo">你打败了 0 只虫子，得到 0 分！</p>
   <button class="btn" id="respawnbtn">满血复活</button>
+  <button class="btn" id="quitbtn" style="margin-top:12px;background:#bcd0e0;box-shadow:0 6px 0 #7a93a6">退出游戏（回首页）</button>
 </div>
 
 <!-- 背包 / 商店 / 熔炉 / 图鉴 -->
@@ -203,6 +204,7 @@
       <button class="invtab" data-tab="pets">🐾 宠物</button>
       <button class="invtab" data-tab="shop">🪙 商店</button>
       <button class="invtab" data-tab="forge">🔥 熔炉</button>
+      <button class="invtab" data-tab="recombine">🔧 重组机</button>
       <button class="invtab" data-tab="ach">🏆 成就</button>
       <button class="invtab" data-tab="dex">📖 图鉴</button>
     </div>
@@ -248,7 +250,8 @@ const PETALS = [
   { id:'emetal', name:'锋金',   color:'#ffd24a', dmg:30, hp:8,  reload:1.5, elem:'metal', crit:2.0,  glow:true, desc:'金系·有几率【暴击】造成双倍穿刺伤害。' },
   { id:'eearth', name:'毒土',   color:'#b07a3d', dmg:10, hp:14, reload:1.4, elem:'earth', poison:{dps:26,dur:4}, desc:'土系·释放毒雾，长时间【中毒】减血。' },
   // 地图特色花瓣：只在对应地图掉落，商店不卖
-  { id:'sunpetal',    name:'向日葵',   color:'#ffd34a', dmg:8,  hp:16, reload:1.3, regen:9, sig:'garden',  desc:'花园特产·阳光的治愈力量，持续回血。' },
+  { id:'sunpetal',    name:'向日葵',   color:'#ffd34a', dmg:8,  hp:16, reload:1.3, armor:40, sig:'garden', desc:'花园特产·护甲花瓣，提供护甲，优先替你挡下物理与首领伤害。' },
+  { id:'shield',      name:'盾甲',     color:'#b0b8c8', dmg:6,  hp:30, reload:1.5, armor:70, desc:'坚固的护甲花瓣，提供大量护甲值，先扛伤害再掉血。' },
   { id:'sandblade',   name:'沙刃',     color:'#e0c27a', dmg:30, hp:10, reload:1.3, sig:'desert',  desc:'沙漠特产·锋利的石英刃片，又快又狠。' },
   { id:'pearl',       name:'珍珠',     color:'#f2eef7', dmg:10, hp:26, reload:1.5, maxhp:90, glow:true, sig:'ocean', desc:'海洋特产·大幅提高血量上限。' },
   { id:'scarabamulet',name:'圣甲护符', color:'#2fae9a', dmg:14, hp:30, reload:1.6, maxhp:50, sig:'pyramid', desc:'金字塔特产·又硬又加血的护身符。' },
@@ -267,6 +270,7 @@ function featText(t){
   if(t.elem) f.push(elemName(t.elem)+'系');
   if(t.heal) f.push('定时治疗');
   if(t.regen) f.push('持续回血');
+  if(t.armor) f.push('🛡️护甲');
   if(t.maxhp) f.push('+'+t.maxhp+'血量上限');
   if(t.poison) f.push('中毒');
   if(t.burn) f.push('灼烧');
@@ -278,20 +282,26 @@ function featText(t){
   return f.join(' · ');
 }
 
-// ---------- 阶级（稀有度）：10 阶，花瓣与生物共用。颜色按彩虹渐变，越高阶越往暖色/亮色 ----------
-const RARITY = [
-  { name:'普通', color:'#e23b3b', mult:1.0  }, // 红
-  { name:'不凡', color:'#ef8a2b', mult:1.5  }, // 橙
-  { name:'稀有', color:'#f2c400', mult:2.2  }, // 黄
-  { name:'史诗', color:'#8bd24a', mult:3.2  }, // 黄绿
-  { name:'传说', color:'#34c24a', mult:4.6  }, // 绿
-  { name:'神话', color:'#1fc7b6', mult:6.6  }, // 青
-  { name:'超神', color:'#2e8be0', mult:9.5  }, // 蓝
-  { name:'究极', color:'#5a5ad8', mult:13.5 }, // 靛
-  { name:'永恒', color:'#9b4ddd', mult:19   }, // 紫
-  { name:'独特', color:'#e03ad6', mult:27   }, // 品红
-];
-const MAXRAR = RARITY.length-1;
+// ---------- 阶级（稀有度）：29 阶，花瓣与生物共用，越往后越强 ----------
+// 唯一(下标16)以下每升一级 ×4，唯一及以上每升一级 ×6（花瓣总倍率，指数增长）
+const RNAMES=['懦弱','微小','可见','残破','普通','不凡','罕见','稀有','史诗','传奇','神话','超神','究极','超级','永恒','独特','唯一','高攻','强化','不朽','杀戮','锋利','圣洁','黑化','自由','神圣','终极','危险','真理'];
+const UNIQUE_TIER=16;   // “唯一”的下标，从这一阶起进入超高阶
+function rarColorOf(i){
+  if(i===28) return '#ffffff';        // 真理：纯白
+  if(i===27) return '#202024';        // 危险：近黑
+  if(i>=UNIQUE_TIER){ const h=(i-UNIQUE_TIER)/(28-UNIQUE_TIER)*330; return `hsl(${h},95%,62%)`; } // 唯一+：高亮霓虹
+  const h=(i/(UNIQUE_TIER-1))*285; return `hsl(${h},78%,52%)`;   // 0..独特：红→紫彩虹
+}
+const RARITY = RNAMES.map((nm,i)=>{
+  let mult=1; for(let t=1;t<=i;t++) mult*=(t>=UNIQUE_TIER?6:4);   // 指数倍率
+  return { name:nm, color:rarColorOf(i), mult };
+});
+const MAXRAR = RARITY.length-1;   // 28
+// 大数字紧凑显示（K/M/B/T/…），高阶数值会非常巨大
+const BIGSUF=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc','UD','DD','TD','QaD','QiD'];
+function fmtBig(n){ n=Math.round(n); if(!isFinite(n)) return '∞'; if(n<1000) return ''+n;
+  let i=0,v=n; while(v>=1000 && i<BIGSUF.length-1){ v/=1000; i++; }
+  return (v<10?v.toFixed(2):(v<100?v.toFixed(1):Math.round(v)))+BIGSUF[i]; }
 // ---------- 五行元素与状态效果 ----------
 const ELEM = {
   none:  { name:'物理', color:'#dddddd' },
@@ -304,10 +314,12 @@ const ELEM = {
 function elemName(e){ return (ELEM[e]||ELEM.none).name; }
 // 生物按阶级缩放：血量/伤害/经验/得分。生物整体强化 ×4（MOBPOW）
 const MOBPOW = 4;
-function mobHpMult(r){ return MOBPOW * 2.6 * (1 + r*0.78); }
-function mobDmgMult(r){ return MOBPOW * 1.7 * (1 + r*0.5); }
-function mobXpMult(r){ return MOBPOW * (1 + r*0.95); }
-function mobScoreMult(r){ return MOBPOW * (1 + r*0.85); }
+// 生物在「唯一」(16)及更高等级时，每升一级属性 ×7（指数增长）
+function highMobMult(r){ return r<UNIQUE_TIER ? 1 : Math.pow(7, r-UNIQUE_TIER+1); }
+function mobHpMult(r){ return MOBPOW * 2.6 * (1 + r*0.78) * highMobMult(r); }
+function mobDmgMult(r){ return MOBPOW * 1.7 * (1 + r*0.5) * highMobMult(r); }
+function mobXpMult(r){ return MOBPOW * (1 + r*0.95) * highMobMult(r); }
+function mobScoreMult(r){ return MOBPOW * (1 + r*0.85) * highMobMult(r); }
 // 已去除「时间成长」：生物强度不再随游戏时间变化（恒为 1）
 function growthMult(){ return 1; }
 // 某地图刷出的生物阶级（以地图基准阶级为中心，少数更高）
@@ -332,6 +344,7 @@ function pReload(p){ return Math.max(0.15, petalById(p.id).reload * (1 - p.rar*0
 function pHeal(p){ const b=petalById(p.id).heal; return b? b*rmul(p) : 0; }
 function pRegen(p){ const b=petalById(p.id).regen; return b? b*rmul(p) : 0; }
 function pBonusHp(p){ const b=petalById(p.id).maxhp; return b? Math.round(b*rmul(p)) : 0; }
+function pArmor(p){ const b=petalById(p.id).armor; return b? b*rmul(p) : 0; }
 function pPoison(p){ const b=petalById(p.id).poison; return b? {dps:b.dps*rmul(p), dur:b.dur} : null; }
 function petalLabel(p){ return RARITY[p.rar].name+petalById(p.id).name; }
 // 经济：币值 / 卖价 / 买价 / 分解经验
@@ -407,6 +420,87 @@ const MOBS = {
   anubis:   { name:'阿努比斯',color:'#caa45a',accent:'#3a2a10', r:28, hp:520, dmg:40, speed:60,  xp:180, score:12, ai:'tank',  drop:0.7,  shape:'round',   tier:3, deco:'horn', elem:'metal' },
   gator:    { name:'下水道鳄',color:'#4a6a3a',accent:'#1a2a10', r:30, hp:560, dmg:42, speed:64,  xp:170, score:11, ai:'tank',  drop:0.7,  shape:'seg',     tier:3, deco:'antenna' },
   nebula:   { name:'星云兽', color:'#9a7ad8', accent:'#2a1a5a', r:32, hp:900, dmg:50, speed:46,  xp:480, score:28, ai:'tank',  drop:0.82, shape:'blob',    tier:4, glow:true, elem:'metal' },
+  // ===== 各地图扩充生物（让每张地图≥10种，攻击方式各异）=====
+  // 花园
+  aphid:    { name:'蚜虫',   color:'#9ed06a', accent:'#4a6a2a', r:14, hp:60,  dmg:10, speed:70,  xp:18, score:2, ai:'chase', drop:0.4, shape:'oval', tier:1, deco:'antenna' },
+  grasshopper:{name:'蚱蜢', color:'#8abf4a', accent:'#4a6a1a', r:18, hp:90,  dmg:16, speed:90,  xp:30, score:3, ai:'wander',drop:0.5, shape:'oval', tier:1, deco:'wings', atk:'charge', atkData:{range:300,cd:2.4,dashSpeed:480,dashTime:0.28} },
+  pillbug:  { name:'西瓜虫', color:'#7a8a9a', accent:'#3a4a5a', r:22, hp:200, dmg:14, speed:30,  xp:44, score:4, ai:'tank',  drop:0.55,shape:'round',tier:1 },
+  gnat:     { name:'小飞虫', color:'#cfd8a0', accent:'#7a8a4a', r:12, hp:50,  dmg:8,  speed:120, xp:16, score:2, ai:'chase', drop:0.4, shape:'round',tier:1, deco:'wings', atk:'ranged', atkData:{range:320,cd:2.0,pdmg:10,pspeed:280,pr:5} },
+  // 沙漠
+  fennec:   { name:'沙狐',   color:'#e0b878', accent:'#8a6a30', r:22, hp:220, dmg:30, speed:128, xp:90,  score:7, ai:'chase', drop:0.58,shape:'oval', tier:2, deco:'antenna' },
+  darkling: { name:'拟步甲', color:'#4a3a2a', accent:'#1a1208', r:24, hp:360, dmg:26, speed:50,  xp:96,  score:7, ai:'tank',  drop:0.6, shape:'oval', tier:2, deco:'horn' },
+  sidewinder:{name:'响尾蛇', color:'#cdb46a', accent:'#7a6030', r:22, hp:240, dmg:34, speed:96,  xp:100, score:8, ai:'chase', drop:0.6, shape:'seg',  tier:2, deco:'antenna', atk:'charge', atkData:{range:340,cd:2.2,dashSpeed:540,dashTime:0.3} },
+  antlion:  { name:'蚁狮',   color:'#b09060', accent:'#5a4020', r:26, hp:420, dmg:32, speed:40,  xp:120, score:9, ai:'tank',  drop:0.66,shape:'diamond',tier:2, deco:'claws' },
+  dustdevil:{ name:'沙尘鬼', color:'#d8c89a', accent:'#9a8050', r:24, hp:260, dmg:24, speed:84,  xp:110, score:8, ai:'wander',drop:0.6, shape:'blob', tier:2, glow:true, atk:'ranged', atkData:{range:420,cd:2.0,pdmg:22,pspeed:300,pr:7} },
+  // 海洋
+  urchin:   { name:'海胆',   color:'#5a4a8a', accent:'#1a1030', r:22, hp:300, dmg:36, speed:24,  xp:100, score:8, ai:'tank',  drop:0.62,shape:'spiky',tier:2 },
+  eel:      { name:'电鳗',   color:'#6acfd0', accent:'#1a5a6a', r:24, hp:240, dmg:30, speed:90,  xp:110, score:8, ai:'chase', drop:0.6, shape:'seg',  tier:2, glow:true, elem:'wood', atk:'ranged', atkData:{range:460,cd:2.0,pdmg:24,pspeed:430,pr:6,glow:true} },
+  seaturtle:{ name:'海龟',   color:'#4a8a6a', accent:'#1a3a2a', r:30, hp:560, dmg:24, speed:34,  xp:130, score:9, ai:'tank',  drop:0.7, shape:'round',tier:2, deco:'horn' },
+  squid:    { name:'乌贼',   color:'#c87aa8', accent:'#6a2a4a', r:24, hp:280, dmg:32, speed:92,  xp:120, score:8, ai:'chase', drop:0.6, shape:'blob', tier:2, deco:'antenna', atk:'charge', atkData:{range:360,cd:2.4,dashSpeed:520,dashTime:0.3} },
+  angler:   { name:'鮟鱇',   color:'#5a4a3a', accent:'#1a1208', r:26, hp:380, dmg:40, speed:54,  xp:140, score:10,ai:'chase', drop:0.64,shape:'round',tier:3, glow:true, atk:'ranged', atkData:{range:480,cd:2.2,pdmg:28,pspeed:320,pr:8,glow:true} },
+  // 金字塔
+  jackal:   { name:'胡狼',   color:'#a8865a', accent:'#4a3018', r:24, hp:340, dmg:38, speed:122, xp:150, score:10,ai:'chase', drop:0.62,shape:'diamond',tier:3, deco:'antenna', atk:'charge', atkData:{range:380,cd:2.4,dashSpeed:560,dashTime:0.3} },
+  beetlegod:{ name:'圣甲神', color:'#3acfa0', accent:'#1a6a5a', r:30, hp:620, dmg:36, speed:46,  xp:180, score:12,ai:'tank',  drop:0.72,shape:'oval', tier:3, glow:true, deco:'horn' },
+  cobraguard:{name:'蛇卫',   color:'#caa45a', accent:'#5a4020', r:24, hp:380, dmg:34, speed:70,  xp:160, score:10,ai:'chase', drop:0.62,shape:'seg',  tier:3, deco:'antenna', elem:'earth', atk:'ranged', atkData:{range:400,cd:2.0,pdmg:24,pspeed:320,pr:7} },
+  sphinx:   { name:'狮身兽', color:'#cbb070', accent:'#6a5020', r:32, hp:720, dmg:42, speed:50,  xp:210, score:14,ai:'tank',  drop:0.76,shape:'round',tier:3, deco:'horn' },
+  scarabswarm:{name:'甲虫群',color:'#3a8a6a', accent:'#1a4a2a', r:18, hp:200, dmg:26, speed:118, xp:120, score:8, ai:'chase', drop:0.56,shape:'oval', tier:3 },
+  pharaoh:  { name:'法老怨灵',color:'#bfa860',accent:'#3a2a10', r:28, hp:520, dmg:40, speed:58,  xp:200, score:13,ai:'chase', drop:0.72,shape:'blob', tier:3, glow:true, elem:'wood', atk:'ranged', atkData:{range:520,cd:1.9,pdmg:30,pspeed:340,pr:8,glow:true} },
+  // 下水道
+  leech:    { name:'水蛭',   color:'#7a3a4a', accent:'#2a1018', r:20, hp:260, dmg:30, speed:96,  xp:120, score:8, ai:'chase', drop:0.6, shape:'seg',  tier:3 },
+  toad:     { name:'蟾蜍',   color:'#6a8a4a', accent:'#2a3a1a', r:26, hp:480, dmg:34, speed:50,  xp:150, score:10,ai:'tank',  drop:0.66,shape:'blob', tier:3, atk:'charge', atkData:{range:320,cd:2.2,dashSpeed:500,dashTime:0.3} },
+  centirat: { name:'鼠蜈',   color:'#8a6a5a', accent:'#3a2a1a', r:22, hp:300, dmg:32, speed:120, xp:130, score:9, ai:'chase', drop:0.6, shape:'seg',  tier:3, deco:'legs' },
+  maggot:   { name:'蛆',     color:'#dcd0b0', accent:'#9a8a60', r:18, hp:220, dmg:22, speed:40,  xp:100, score:7, ai:'wander',drop:0.55,shape:'pill', tier:3 },
+  sewerfly: { name:'污蝇',   color:'#4a5a3a', accent:'#1a2a10', r:18, hp:240, dmg:24, speed:110, xp:120, score:8, ai:'chase', drop:0.58,shape:'oval', tier:3, deco:'wings', elem:'earth', atk:'ranged', atkData:{range:420,cd:2.0,pdmg:22,pspeed:300,pr:7} },
+  ooze:     { name:'软泥怪', color:'#7eb86a', accent:'#3a5a2a', r:28, hp:600, dmg:26, speed:28,  xp:160, score:11,ai:'tank',  drop:0.72,shape:'blob', tier:3, glow:true },
+  // 丛林
+  panther:  { name:'黑豹',   color:'#2a2a32', accent:'#0a0a10', r:26, hp:420, dmg:46, speed:132, xp:200, score:13,ai:'chase', drop:0.66,shape:'diamond',tier:3, deco:'claws', atk:'charge', atkData:{range:420,cd:2.2,dashSpeed:600,dashTime:0.3} },
+  boa:      { name:'蟒蛇',   color:'#6a8a4a', accent:'#2a4a1a', r:28, hp:600, dmg:38, speed:50,  xp:190, score:12,ai:'tank',  drop:0.7, shape:'seg',  tier:3, deco:'antenna' },
+  dartfrog: { name:'箭蛙',   color:'#3acf7a', accent:'#1a6a3a', r:18, hp:240, dmg:30, speed:80,  xp:140, score:9, ai:'chase', drop:0.6, shape:'blob', tier:3, glow:true, elem:'earth', atk:'ranged', atkData:{range:420,cd:1.8,pdmg:24,pspeed:320,pr:7} },
+  rhinobeetle:{name:'独角仙',color:'#5a4a2a', accent:'#1a1008', r:28, hp:560, dmg:40, speed:54,  xp:180, score:12,ai:'tank',  drop:0.7, shape:'oval', tier:3, deco:'horn' },
+  waspnest: { name:'蜂巢',   color:'#caa45a', accent:'#5a4020', r:26, hp:440, dmg:30, speed:30,  xp:170, score:11,ai:'tank',  drop:0.68,shape:'round',tier:3, atk:'ranged', atkData:{range:500,cd:1.5,pdmg:20,pspeed:330,pr:6,burst:3} },
+  // 地狱
+  hellhound:{ name:'地狱犬', color:'#a8281a', accent:'#3a0a08', r:26, hp:560, dmg:52, speed:130, xp:320, score:18,ai:'chase', drop:0.78,shape:'diamond',tier:4, glow:true, deco:'horn', atk:'charge', atkData:{range:420,cd:2.2,dashSpeed:620,dashTime:0.3} },
+  succubus: { name:'魅魔',   color:'#c83a7a', accent:'#5a0a2a', r:24, hp:480, dmg:44, speed:90,  xp:300, score:17,ai:'chase', drop:0.76,shape:'blob', tier:4, glow:true, deco:'wings', elem:'fire', atk:'ranged', atkData:{range:540,cd:1.5,pdmg:30,pspeed:340,pr:8,glow:true} },
+  lavabug:  { name:'熔岩虫', color:'#e85a1a', accent:'#7a1a00', r:28, hp:720, dmg:46, speed:46,  xp:340, score:19,ai:'tank',  drop:0.8, shape:'seg',  tier:4, glow:true, elem:'fire' },
+  brimstone:{ name:'硫磺鬼', color:'#d8a83a', accent:'#5a3a08', r:24, hp:520, dmg:42, speed:70,  xp:300, score:17,ai:'chase', drop:0.76,shape:'spiky',tier:4, glow:true, elem:'fire', atk:'ranged', atkData:{range:520,cd:1.7,pdmg:32,pspeed:330,pr:8,glow:true} },
+  reaper:   { name:'死神',   color:'#3a2a4a', accent:'#0a0810', r:28, hp:640, dmg:56, speed:104, xp:360, score:20,ai:'chase', drop:0.82,shape:'blob', tier:4, glow:true },
+  magmaworm:{ name:'岩浆虫', color:'#c83a1a', accent:'#5a1000', r:30, hp:820, dmg:48, speed:36,  xp:380, score:21,ai:'tank',  drop:0.82,shape:'seg',  tier:4, glow:true, elem:'fire' },
+  // 冰原
+  icebear:  { name:'冰熊',   color:'#dfeef8', accent:'#7a9ab8', r:32, hp:640, dmg:42, speed:54,  xp:180, score:12,ai:'tank',  drop:0.7, shape:'round',tier:3, deco:'horn', elem:'water' },
+  frostwolf:{ name:'霜狼',   color:'#aac8de', accent:'#4a6a88', r:24, hp:360, dmg:38, speed:128, xp:160, score:11,ai:'chase', drop:0.64,shape:'diamond',tier:3, deco:'antenna', atk:'charge', atkData:{range:400,cd:2.2,dashSpeed:580,dashTime:0.3} },
+  petrel:   { name:'海燕',   color:'#c8d8e8', accent:'#5a7088', r:20, hp:260, dmg:30, speed:130, xp:130, score:9, ai:'chase', drop:0.6, shape:'oval', tier:3, deco:'wings', atk:'ranged', atkData:{range:460,cd:2.0,pdmg:22,pspeed:340,pr:7} },
+  mammoth:  { name:'猛犸',   color:'#9a7a5a', accent:'#3a2a1a', r:36, hp:900, dmg:46, speed:40,  xp:220, score:14,ai:'tank',  drop:0.78,shape:'round',tier:3, deco:'horn' },
+  snowflea: { name:'雪蚤',   color:'#e8f0f8', accent:'#8aa0b8', r:14, hp:160, dmg:24, speed:130, xp:100, score:7, ai:'chase', drop:0.56,shape:'round',tier:3 },
+  icewraith:{ name:'寒冰魄', color:'#9fd8f8', accent:'#3a6a8a', r:24, hp:340, dmg:32, speed:66,  xp:150, score:10,ai:'chase', drop:0.62,shape:'blob', tier:3, glow:true, elem:'water', atk:'ranged', atkData:{range:480,cd:2.0,pdmg:24,pspeed:300,pr:7,glow:true} },
+  // 生命之躯
+  tcell:    { name:'T细胞',  color:'#4acf8a', accent:'#1a6a3a', r:22, hp:360, dmg:36, speed:96,  xp:150, score:10,ai:'chase', drop:0.6, shape:'cell', tier:4 },
+  parasite: { name:'寄生虫', color:'#c87a9a', accent:'#5a2a3a', r:20, hp:320, dmg:34, speed:120, xp:140, score:9, ai:'chase', drop:0.6, shape:'seg',  tier:4, atk:'charge', atkData:{range:360,cd:2.0,dashSpeed:560,dashTime:0.28} },
+  spore:    { name:'孢子',   color:'#8acf5a', accent:'#3a6a1a', r:18, hp:240, dmg:26, speed:60,  xp:120, score:8, ai:'wander',drop:0.58,shape:'round',tier:4, glow:true, elem:'earth', atk:'ranged', atkData:{range:420,cd:2.0,pdmg:24,pspeed:260,pr:8,glow:true} },
+  amoeba:   { name:'变形虫', color:'#5acfb0', accent:'#1a6a5a', r:28, hp:620, dmg:30, speed:36,  xp:170, score:11,ai:'tank',  drop:0.7, shape:'blob', tier:4, glow:true },
+  neuron:   { name:'神经元', color:'#d8b85a', accent:'#5a4010', r:24, hp:380, dmg:38, speed:64,  xp:160, score:11,ai:'chase', drop:0.62,shape:'virus',tier:4, glow:true, elem:'wood', atk:'ranged', atkData:{range:500,cd:1.8,pdmg:28,pspeed:360,pr:7,glow:true} },
+  plasmid:  { name:'质粒',   color:'#5a9adf', accent:'#1a3a6a', r:20, hp:300, dmg:32, speed:110, xp:140, score:9, ai:'chase', drop:0.6, shape:'cell', tier:4 },
+  // 虚空
+  voidling: { name:'虚空仔', color:'#4a3a6a', accent:'#150f28', r:22, hp:520, dmg:40, speed:110, xp:260, score:15,ai:'chase', drop:0.7, shape:'blob', tier:4, glow:true },
+  nullbeast:{ name:'虚无兽', color:'#3a2a5a', accent:'#0a0814', r:30, hp:780, dmg:46, speed:46,  xp:340, score:19,ai:'tank',  drop:0.8, shape:'round',tier:4, glow:true, elem:'metal' },
+  riftspawn:{ name:'裂隙生物',color:'#6a4a9a',accent:'#1a0f2a', r:24, hp:560, dmg:48, speed:120, xp:300, score:17,ai:'chase', drop:0.74,shape:'diamond',tier:4, glow:true, atk:'charge', atkData:{range:420,cd:2.2,dashSpeed:600,dashTime:0.3} },
+  eyestalk: { name:'眼魔',   color:'#7a3a6a', accent:'#1a0814', r:26, hp:640, dmg:44, speed:54,  xp:320, score:18,ai:'chase', drop:0.78,shape:'round',tier:4, glow:true, elem:'wood', atk:'ranged', atkData:{range:560,cd:1.8,pdmg:32,pspeed:360,pr:8,glow:true} },
+  darkstar: { name:'暗星',   color:'#5a4a8a', accent:'#0a0814', r:24, hp:560, dmg:42, speed:60,  xp:300, score:17,ai:'tank',  drop:0.76,shape:'spiky',tier:4, glow:true, elem:'metal', atk:'ranged', atkData:{range:540,cd:2.0,pdmg:30,pspeed:380,pr:7,glow:true} },
+  phantom:  { name:'幽影',   color:'#4a4a6a', accent:'#15151f', r:22, hp:480, dmg:46, speed:118, xp:280, score:16,ai:'chase', drop:0.72,shape:'blob', tier:4, glow:true },
+  abyssworm:{ name:'深渊虫', color:'#3a2a4a', accent:'#0a0810', r:32, hp:860, dmg:44, speed:34,  xp:360, score:20,ai:'tank',  drop:0.82,shape:'seg',  tier:4, glow:true },
+  // 侏罗纪
+  trex:     { name:'霸王龙', color:'#7a6a3a', accent:'#3a2a10', r:34, hp:820, dmg:60, speed:110, xp:380, score:22,ai:'chase', drop:0.82,shape:'diamond',tier:4, deco:'claws', atk:'charge', atkData:{range:440,cd:2.4,dashSpeed:620,dashTime:0.32} },
+  bronto:   { name:'雷龙',   color:'#5a7a4a', accent:'#1a3a1a', r:38, hp:1100,dmg:42, speed:36,  xp:400, score:23,ai:'tank',  drop:0.84,shape:'oval', tier:4, deco:'antenna' },
+  spino:    { name:'棘龙',   color:'#7a4a6a', accent:'#2a1020', r:30, hp:680, dmg:52, speed:108, xp:340, score:19,ai:'chase', drop:0.78,shape:'seg',  tier:4, deco:'horn' },
+  ankylo:   { name:'甲龙',   color:'#6a6a4a', accent:'#2a2a1a', r:32, hp:980, dmg:40, speed:42,  xp:360, score:20,ai:'tank',  drop:0.8, shape:'round',tier:4, deco:'horn' },
+  pteroraptor:{name:'翼盗龙',color:'#a86a4a', accent:'#3a1a10', r:24, hp:480, dmg:42, speed:128, xp:280, score:16,ai:'chase', drop:0.7, shape:'oval', tier:4, deco:'wings', atk:'ranged', atkData:{range:460,cd:1.8,pdmg:28,pspeed:340,pr:7} },
+  compy:    { name:'美颌龙', color:'#8a9a4a', accent:'#3a4a1a', r:18, hp:300, dmg:34, speed:140, xp:200, score:13,ai:'chase', drop:0.6, shape:'diamond',tier:4 },
+  // 星界
+  pulsar:   { name:'脉冲兽', color:'#7ad0ff', accent:'#1a4a7a', r:26, hp:680, dmg:50, speed:64,  xp:420, score:25,ai:'chase', drop:0.8, shape:'round',tier:4, glow:true, elem:'wood', atk:'ranged', atkData:{range:580,cd:1.6,pdmg:34,pspeed:420,pr:7,glow:true} },
+  blackhole:{ name:'黑洞兽', color:'#2a1a4a', accent:'#000', r:34, hp:1100,dmg:56, speed:40,  xp:520, score:30,ai:'tank',  drop:0.86,shape:'round',tier:4, glow:true, elem:'metal' },
+  starwhale:{ name:'星鲸',   color:'#5a7ad8', accent:'#1a2a5a', r:38, hp:1300,dmg:48, speed:38,  xp:560, score:32,ai:'tank',  drop:0.88,shape:'oval', tier:4, glow:true },
+  supernova:{ name:'超新星', color:'#ffd86a', accent:'#8a5a10', r:28, hp:760, dmg:54, speed:58,  xp:480, score:28,ai:'chase', drop:0.82,shape:'spiky',tier:4, glow:true, elem:'fire', atk:'ranged', atkData:{range:600,cd:1.6,pdmg:38,pspeed:380,pr:9,glow:true} },
+  cosmicray:{ name:'宇宙射线',color:'#c87aff',accent:'#3a1a5a', r:22, hp:600, dmg:52, speed:140, xp:440, score:26,ai:'chase', drop:0.8, shape:'diamond',tier:4, glow:true },
+  galaxybug:{ name:'银河虫', color:'#7a5ad8', accent:'#2a1a5a', r:26, hp:720, dmg:50, speed:120, xp:460, score:27,ai:'chase', drop:0.8, shape:'seg',  tier:4, glow:true, atk:'charge', atkData:{range:440,cd:2.2,dashSpeed:620,dashTime:0.3} },
   // 五行元素精灵：每张地图都会出现，远程释放对应属性攻击，掉落偏向自己的属性花瓣
   thundersprite:{ name:'雷灵', color:'#8be34a', accent:'#4a8a1a', r:20, hp:150, dmg:16, speed:78, xp:60, score:5, ai:'chase', drop:0.6, shape:'diamond', tier:2, glow:true, elem:'wood',  elemDrop:'ewood' },
   firesprite:  { name:'火灵', color:'#ff6a3d', accent:'#8a2a08', r:20, hp:160, dmg:18, speed:66, xp:60, score:5, ai:'chase', drop:0.6, shape:'round',   tier:2, glow:true, elem:'fire',  elemDrop:'efire' },
@@ -416,7 +510,9 @@ const MOBS = {
   // 元素精灵·强化变体（替换特定地图里的对应精灵）
   bombsprite:  { name:'炸灵', color:'#ff8a3d', accent:'#7a2a00', r:22, hp:200, dmg:18, speed:60, xp:72, score:6, ai:'chase', drop:0.6, shape:'blob',    tier:2, glow:true, elem:'fire',  elemDrop:'efire'  }, // 火球落地中范围爆炸·伤害×3
   frostsprite: { name:'冻灵', color:'#9fe8ff', accent:'#2a6a9a', r:20, hp:200, dmg:14, speed:56, xp:72, score:6, ai:'chase', drop:0.6, shape:'diamond', tier:2, glow:true, elem:'water', elemDrop:'ewater' }, // 伤害×2、冰冻×2
-  boltsprite:  { name:'电灵', color:'#ffe14a', accent:'#8a6a00', r:20, hp:180, dmg:16, speed:80, xp:75, score:6, ai:'chase', drop:0.6, shape:'spiky',   tier:2, glow:true, elem:'wood',  elemDrop:'ewood'  }, // 闪电必中·伤害×4·连锁其它玩家
+  boltsprite:  { name:'电灵', color:'#ffe14a', accent:'#8a6a00', r:20, hp:180, dmg:16, speed:80, xp:75, score:6, ai:'chase', drop:0.6, shape:'spiky',   tier:2, glow:true, elem:'wood',  elemDrop:'ewood'  }, // 远程闪电·伤害×4
+  ironsprite:  { name:'铁灵', color:'#c0c0d0', accent:'#5a5a6a', r:20, hp:390, dmg:72, speed:84, xp:90, score:7, ai:'chase', drop:0.6, shape:'spiky',   tier:2, glow:true, elem:'metal', elemDrop:'emetal' }, // 生命之躯·血量与攻击×3
+  stonesprite: { name:'石灵', color:'#9a8a6a', accent:'#4a3a2a', r:24, hp:720, dmg:28, speed:48, xp:90, score:7, ai:'tank',  drop:0.6, shape:'blob',    tier:2, glow:true, elem:'earth', elemDrop:'eearth' }, // 侏罗纪·生命×4·伤害×2
   // 守关塔：把守通往更深地图的传送门，不会移动，打掉才放行
   tower: { name:'守关塔', color:'#8a93a6', accent:'#5a6678', r:34, hp:900, dmg:24, speed:0, xp:500, score:40, ai:'tower', drop:1, shape:'tower', tier:3 },
   // 镜像小花：不定时复制玩家（血量上限、花瓣配置完全一样），打败可抢回它的花瓣
@@ -434,8 +530,8 @@ for(const k in MOB_ELEM) MOBS[k].elem = MOB_ELEM[k];
 // 掉落档次：怪的 tier → 花瓣权重表
 const LOOT = {
   1: [['basic',4],['fast',3],['light',2],['salt',2],['leaf',1]],
-  2: [['salt',3],['heavy',3],['rose',2],['leaf',2],['cactus',2],['iris',1]],
-  3: [['heavy',2],['cactus',2],['iris',3],['sting',2],['wing',1],['ewater',1.6],['ewood',1.6],['eearth',1.2]],
+  2: [['salt',3],['heavy',3],['rose',2],['leaf',2],['cactus',2],['iris',1],['shield',1.5]],
+  3: [['heavy',2],['cactus',2],['iris',3],['sting',2],['wing',1],['shield',1.5],['ewater',1.6],['ewood',1.6],['eearth',1.2]],
   4: [['sting',3],['wing',3],['flame',2],['iris',1],['efire',2],['emetal',2],['eearth',1.5],['ewater',1.2]],
 };
 
@@ -469,6 +565,9 @@ const RANGED = {
   seraph:       { range:600, cd:1.6, pdmg:34, pspeed:360, pr:9, glow:true },   // 😇炽天使：神圣光束
   bombsprite:   { range:430, cd:2.6, pdmg:54, pspeed:240, pr:10, glow:true, boom:140 },     // 💣炸灵：火球落地中范围爆炸（×3）
   frostsprite:  { range:460, cd:2.2, pdmg:28, pspeed:300, pr:8,  glow:true, freezeMul:2 },  // 🧊冻灵：减速时长×2、伤害×2
+  boltsprite:   { range:540, cd:2.0, pdmg:64, pspeed:520, pr:7,  glow:true, bolt:true },    // ⚡电灵：远程闪电、伤害×4
+  ironsprite:   { range:500, cd:2.6, pdmg:66, pspeed:460, pr:6,  glow:true },               // 🔩铁灵：穿刺镖×3
+  stonesprite:  { range:400, cd:2.2, pdmg:26, pspeed:240, pr:10, glow:true },               // 🪨石灵：落石
   // 新增特色生物的远程攻击
   dragonfly:    { range:360, cd:1.8, pdmg:12, pspeed:300, pr:6 },
   cobra:        { range:380, cd:2.0, pdmg:20, pspeed:320, pr:7 },
@@ -494,9 +593,6 @@ const CHARGER = {
   gator:    { range:380, cd:2.4, dashSpeed:520, dashTime:0.32 },
 };
 for(const k in CHARGER){ MOBS[k].atk='charge'; MOBS[k].atkData=CHARGER[k]; }
-// ⚡电灵：闪电必中（不可躲），可连锁到附近其它玩家
-MOBS.boltsprite.atk='bolt';
-MOBS.boltsprite.atkData={ range:520, cd:2.0, dmg:64, chain:3, chainRange:300 };
 
 // ---------- 地图 / 生物群系 + 传送门 ----------
 const MAPS = {
@@ -553,12 +649,14 @@ for(const k in MAPS) MAPS[k].id = k;   // 让每张地图知道自己的 id（�
 // 每张地图出现哪些元素精灵（按需求逐图增删 / 替换强化变体）；未列出的地图用默认全 5 种
 const DEFAULT_SPRITES=['thundersprite','firesprite','icesprite','metalsprite','poisonsprite'];
 const MAP_SPRITES = {
-  desert:  ['thundersprite','firesprite','metalsprite','poisonsprite'],   // 去冰灵
-  pyramid: ['thundersprite','metalsprite','poisonsprite'],                // 去冰灵、火灵
-  sewers:  ['bombsprite','metalsprite','poisonsprite'],                   // 去雷灵、冰灵；火灵→炸灵
-  arctic:  ['thundersprite','frostsprite','metalsprite'],                 // 去火灵、毒灵；冰灵→冻灵
-  bio:     ['thundersprite','icesprite','metalsprite','poisonsprite'],    // 去火灵
-  ocean:   ['boltsprite','icesprite','metalsprite','poisonsprite'],       // 去火灵；雷灵→电灵
+  desert:   ['thundersprite','firesprite','metalsprite','poisonsprite'],          // 去冰灵
+  pyramid:  ['thundersprite','metalsprite','poisonsprite'],                       // 去冰灵、火灵
+  sewers:   ['bombsprite','metalsprite','poisonsprite'],                          // 去雷灵、冰灵；火灵→炸灵
+  arctic:   ['thundersprite','frostsprite','metalsprite'],                        // 去火灵、毒灵；冰灵→冻灵
+  bio:      ['thundersprite','icesprite','ironsprite','poisonsprite'],            // 去火灵；金灵→铁灵
+  ocean:    ['boltsprite','icesprite','metalsprite','poisonsprite'],              // 去火灵；雷灵→电灵
+  jurassic: ['thundersprite','firesprite','icesprite','metalsprite','stonesprite'], // 毒灵→石灵
+  celestial:['thundersprite','firesprite','icesprite','metalsprite'],             // 去毒灵
 };
 for(const k in MAPS){ const list=MAP_SPRITES[k]||DEFAULT_SPRITES; for(const s of list) MAPS[k].types.push([s,0.8]); }
 // 每张地图新增的特色生物（让攻击方式更丰富）
@@ -568,6 +666,22 @@ const EXTRA_MOBS = {
   bio:['microbe',2], pyramid:['anubis',1.6], sewers:['gator',1.8], celestial:['nebula',1.5],
 };
 for(const k in EXTRA_MOBS){ if(MAPS[k]) MAPS[k].types.push([...EXTRA_MOBS[k]]); }
+// 让每张地图的特色生物（不含精灵）达到 ≥10 种
+const EXTRA2 = {
+  garden:   [['aphid',2.5],['grasshopper',1.8],['pillbug',1.5],['gnat',2]],
+  desert:   [['fennec',2],['darkling',1.8],['sidewinder',1.6],['antlion',1.4],['dustdevil',1.6]],
+  ocean:    [['urchin',1.8],['eel',1.6],['seaturtle',1.4],['squid',1.8],['angler',1.4]],
+  pyramid:  [['jackal',2],['beetlegod',1.4],['cobraguard',1.8],['sphinx',1.2],['scarabswarm',2],['pharaoh',1.4]],
+  sewers:   [['leech',2],['toad',1.6],['centirat',1.8],['maggot',2],['sewerfly',1.8],['ooze',1.4]],
+  jungle:   [['panther',1.6],['boa',1.5],['dartfrog',1.8],['rhinobeetle',1.6],['waspnest',1.4]],
+  hel:      [['hellhound',1.6],['succubus',1.6],['lavabug',1.4],['brimstone',1.6],['reaper',1.3],['magmaworm',1.3]],
+  arctic:   [['icebear',1.5],['frostwolf',1.8],['petrel',1.8],['mammoth',1.3],['snowflea',2],['icewraith',1.6]],
+  bio:      [['tcell',2],['parasite',1.8],['spore',1.8],['amoeba',1.5],['neuron',1.6],['plasmid',1.8]],
+  void:     [['voidling',1.8],['nullbeast',1.4],['riftspawn',1.6],['eyestalk',1.5],['darkstar',1.5],['phantom',1.7],['abyssworm',1.3]],
+  jurassic: [['trex',1.4],['bronto',1.3],['spino',1.6],['ankylo',1.4],['pteroraptor',1.7],['compy',2]],
+  celestial:[['pulsar',1.6],['blackhole',1.2],['starwhale',1.2],['supernova',1.5],['cosmicray',1.8],['galaxybug',1.6]],
+};
+for(const k in EXTRA2){ if(MAPS[k]) for(const e of EXTRA2[k]) MAPS[k].types.push([...e]); }
 // 进入门槛：等级越高才能去越深的地图（怪更强、奖励更高）
 const MAP_MINLV = { garden:1, desert:4, ocean:8, jungle:14, hel:22, pyramid:7, sewers:11, arena:28, arctic:12, bio:16, jurassic:18, void:25, celestial:32 };
 for(const k in MAPS) MAPS[k].minLevel = MAP_MINLV[k];
@@ -666,6 +780,7 @@ function freshPlayer(){
     level:1, xp:0, xpNext:100,
     baseMaxHp:500, maxHp:500, hp:500,           // 基础生命提高
     score:0, kills:0, gold:0, gems:0, baseSpeed:230, speed:230,
+    armor:0, maxArmor:0,   // 护甲：优先抵挡物理与首领伤害，随时间回复
     petalAngle:0, angularSpeed:2.5, currentRadius:50,
     mode:'normal', face:0, hurtFlash:0,
     petals,
@@ -707,10 +822,12 @@ function petHealPrice(pt){ return Math.max(5, Math.ceil(petMaxHp(pt)/30)); }
 function petUpgradePrice(pt){ return Math.ceil(80*pt.level*(1+pt.rar*0.4)); }
 
 function recomputeStats(){
-  let bonus=0;
-  for (const pet of player.petals){ if(pet && petalActive(pet)) bonus+=pBonusHp(pet); }
+  let bonus=0, armor=0;
+  for (const pet of player.petals){ if(pet && petalActive(pet)){ bonus+=pBonusHp(pet); armor+=pArmor(pet); } }
   const statHp = (player.stats?player.stats.hp:0)*60;   // 每点生命 +60
   player.maxHp = player.baseMaxHp + bonus + statHp;
+  player.maxArmor = armor;
+  if(player.armor>player.maxArmor) player.armor=player.maxArmor;
   player.speed = player.baseSpeed * spdMult();
   if (player.hp > player.maxHp) player.hp = player.maxHp;
 }
@@ -718,7 +835,7 @@ function recomputeStats(){
 function resetGame(){
   player = freshPlayer();
   drops=[]; particles=[]; projectiles=[]; firePatches=[]; blasts=[]; hazards=[]; floaters=[]; selectedSlot=null;
-  recomputeStats();
+  recomputeStats(); player.armor=player.maxArmor;
   enterMap('garden', null);   // 从花园开始
 }
 
@@ -890,7 +1007,7 @@ function updateOthers(dt, now){
       const want=tg.r+56;
       if(dd>want){ mvx=dx/dd; mvy=dy/dd; } else { mvx=-dx/dd*0.25; mvy=-dy/dd*0.25; }
       o.atkT-=dt; if(dd<want+24 && o.atkT<=0){ o.atkT=0.25; const dmg=otherDmg(o);
-        tg.hp-=dmgToMob(tg,dmg,'none'); tg.hitFlash=0.12; tg.angry=true; addDmgFloat(tg,dmg);
+        tg.hp-=dmgToMob(tg,dmg,'none'); tg.hitFlash=0.12; tg.angry=true; tg.aggro=o; addDmgFloat(tg,dmg);
         if(tg.hp<=0){ otherKill(tg, o.teammate); o.target=null; } }
     } else { o.wt-=dt; if(o.wt<=0){ o.wa=Math.random()*6.283; o.wt=rand(1,2.5);} mvx=Math.cos(o.wa); mvy=Math.sin(o.wa); }
     const spd=215;
@@ -1072,7 +1189,7 @@ const Sound = (()=>{
 
 // ---------- 打击感：屏幕震动 + 伤害飘字 ----------
 function addShake(a){ shakeAmt=Math.min(26, shakeAmt+a); }
-function fmtDmg(v){ v=Math.round(v); return v>=1000?(v/1000).toFixed(1)+'k':''+v; }
+function fmtDmg(v){ return fmtBig(v); }
 function addDmgFloat(m, amount, crit){ if(amount<1) return;
   const f=m._float;
   if(f && f.life>0.42){ f.val+=amount; f.txt=fmtDmg(f.val); if(crit) f.crit=true; }
@@ -1135,8 +1252,8 @@ function update(dt, now){
   mouse.y = mouse.sy - canvas.height/2 + camera.y;
 
   // 玩家受到的状态：中毒掉血、地面火焰、眩晕、减速
-  if(p.poison){ if(now<p.poison.until){ hurt(p.poison.dps*dt); } else p.poison=null; }
-  for(const fp of firePatches){ if(dist2(fp.x,fp.y,p.x,p.y)<(fp.r+p.r)*(fp.r+p.r)) hurt(fp.dps*dt*(1-resReduce())); }
+  if(p.poison){ if(now<p.poison.until){ hurt(p.poison.dps*dt,{spell:true}); } else p.poison=null; }
+  for(const fp of firePatches){ if(dist2(fp.x,fp.y,p.x,p.y)<(fp.r+p.r)*(fp.r+p.r)) hurt(fp.dps*dt*(1-resReduce()),{spell:true}); }
   const stunned = now < p.stunUntil;
   const moveMul = now < p.slowUntil ? 0.45 : 1;
 
@@ -1189,12 +1306,16 @@ function update(dt, now){
   }
   // 基础恢复：每秒缓慢回复 1% 最大生命（回血类花瓣在此基础上叠加）
   heal((p.maxHp*0.01 + regenSum)*dt);
+  // 护甲回复：每秒回 8% 最大护甲
+  if(p.maxArmor>0) p.armor=Math.min(p.maxArmor, p.armor + p.maxArmor*0.08*dt);
 
   // 敌人
   for (const m of mobs){
     if(m.dead) continue;
     const t=MOBS[m.type];
-    const ddx=p.x-m.x, ddy=p.y-m.y, md=Math.hypot(ddx,ddy)||1;
+    // 目标：优先宠物 > 攻击过它的实体 > 最近的玩家/其它玩家
+    const tgt = mobTarget(m);
+    const ddx=tgt.x-m.x, ddy=tgt.y-m.y, md=Math.hypot(ddx,ddy)||1;
     if(m.atkCd>0) m.atkCd-=dt;
     const mStunned = now < (m.stun||0);
     const spd = (m.type==='mirror'? player.speed*0.9 : t.speed) * (now<(m.slowUntil||0)?0.45:1) * (m.boss?1.15:1);
@@ -1205,19 +1326,20 @@ function update(dt, now){
     else if(m.dashT>0){ m.dashT-=dt; m.vx=m.dvx; m.vy=m.dvy; }   // 冲刺中
     else if(chase){ m.vx=ddx/md*spd; m.vy=ddy/md*spd; }
     else { m.wanderT-=dt; if(m.wanderT<=0){m.wanderA=Math.random()*Math.PI*2;m.wanderT=rand(1.2,2.6);} m.vx=Math.cos(m.wanderA)*spd*0.45; m.vy=Math.sin(m.wanderA)*spd*0.45; }
-    // 多样化攻击方式（眩晕时无法攻击）
-    if(!mStunned && t.atk==='ranged' && m.atkCd<=0 && md<t.atkData.range){ fireProjectile(m,t.atkData); m.atkCd=t.atkData.cd; m.angry=true; }
+    // 多样化攻击方式（眩晕时无法攻击）；瞄准当前目标
+    if(!mStunned && t.atk==='ranged' && m.atkCd<=0 && md<t.atkData.range){ fireProjectile(m,t.atkData,tgt.x,tgt.y); m.atkCd=t.atkData.cd; m.angry=true; }
     if(!mStunned && t.atk==='charge' && m.atkCd<=0 && m.dashT<=0 && md<t.atkData.range){ m.dvx=ddx/md*t.atkData.dashSpeed; m.dvy=ddy/md*t.atkData.dashSpeed; m.dashT=t.atkData.dashTime; m.atkCd=t.atkData.cd; m.angry=true; }
-    if(!mStunned && t.atk==='bolt' && m.atkCd<=0 && md<t.atkData.range){ fireBolt(m,t.atkData); m.atkCd=t.atkData.cd; m.angry=true; }
+    // 接触目标若为宠物/其它玩家，对其造成伤害
+    if(tgt!==player && md < m.r+(tgt.r||20)){ tgt.hp-=mobAtk(m)*dt*1.6; tgt.hitFlash=0.12; }
     // Boss 大范围 AOE 魔法：锁定玩家当前位置出警告圈，1.1 秒后爆炸（穿透花瓣直接命中，快跑出圈！）
     if(m.boss){
       // 高频穿透弹幕（7发扇形）
       m.barrageCd=(m.barrageCd!=null?m.barrageCd:rand(1.5,3))-dt;
-      if(!mStunned && m.barrageCd<=0 && md<680){ fireProjectile(m, BOSS_BARRAGE); m.barrageCd=1.8; }
+      if(!mStunned && m.barrageCd<=0 && md<680){ fireProjectile(m, BOSS_BARRAGE, tgt.x, tgt.y); m.barrageCd=1.8; }
       // 定时召唤 15 个元素精灵
       m.summonCd=(m.summonCd!=null?m.summonCd:rand(8,14))-dt;
       if(!mStunned && m.summonCd<=0 && md<800){ bossSummon(m); m.summonCd=rand(14,20); }
-      if(!m.aoe){ m.aoeCd-=dt; if(!mStunned && m.aoeCd<=0 && md<700){ m.aoe={x:p.x,y:p.y,r:240+m.rar*8,fireAt:now+1100}; } }
+      if(!m.aoe){ m.aoeCd-=dt; if(!mStunned && m.aoeCd<=0 && md<700){ m.aoe={x:tgt.x,y:tgt.y,r:240+m.rar*8,fireAt:now+1100}; } }
       else if(now>=m.aoe.fireAt){
         const A=m.aoe, ec=ELEM[m.aoeElem].color;
         blasts.push({x:A.x,y:A.y,r:A.r,color:ec,until:now+380});
@@ -1225,7 +1347,7 @@ function update(dt, now){
         if(m.aoeElem==='fire') firePatches.push({x:A.x,y:A.y,r:95,dps:28+m.rar*4,until:now+3500});
         if(dist2(p.x,p.y,A.x,A.y)<(A.r+p.r)*(A.r+p.r)){
           const reduce=p.mode==='defense'?0.45:1;
-          hurt(mobAtk(m)*2.5*reduce*(1-resReduce()));   // 大魔法是元素伤害，吃抗性打折；吃满仍近乎致命，快跑！
+          hurt(mobAtk(m)*2.5*reduce*(1-resReduce()),{spell:true,boss:true});   // 首领大魔法：法术但来自首领→护甲可挡
           applyElemToPlayer(m.aoeElem, true, m.rar, now, p.x, p.y);
         }
         m.aoe=null; m.aoeCd=rand(6,9);
@@ -1264,7 +1386,7 @@ function update(dt, now){
         const pt=petalById(pet.id);
         let dmg=pDmg(pet)*atkMult(); let isCrit=false;
         if(pt.crit && Math.random()<0.3){ dmg*=pt.crit; isCrit=true; spawnParticles(m.x,m.y,'#ffd24a',4); Sound.crit(); }  // 金系暴击
-        const dealt=dmgToMob(m,dmg,pt.elem||'none'); m.hp-=dealt; m.hitFlash=0.12; m.angry=true; pet.hp-=6;
+        const dealt=dmgToMob(m,dmg,pt.elem||'none'); m.hp-=dealt; m.hitFlash=0.12; m.angry=true; m.aggro=player; pet.hp-=6;
         addDmgFloat(m, dealt, isCrit); if(!isCrit) Sound.hit();
         applyPetalElem(m,pet,now);
         knock(m,pet.x,pet.y,30);
@@ -1277,7 +1399,7 @@ function update(dt, now){
     // 敌人 ↔ 花朵：可以穿过生物。重叠时：玩家对怪造成接触伤害(每秒为其总血1/10)，玩家也受接触伤害
     const rb=m.r+p.r;
     if(dist2(m.x,m.y,p.x,p.y)<rb*rb){
-      m.hp-=dmgToMob(m, m.maxHp*0.1*dt, 'none');
+      m.hp-=dmgToMob(m, m.maxHp*0.1*dt, 'none'); m.aggro=player;
       if(m.hp<=0){ killMob(m); continue; }
       const reduce=p.mode==='defense'?0.45:1;
       hurt(mobAtk(m)*reduce*dt*3.2);
@@ -1303,10 +1425,13 @@ function update(dt, now){
       if(!gone && dist2(pr.x,pr.y,p.x,p.y)<(pr.r+p.r)*(pr.r+p.r)){
         const reduce=p.mode==='defense'?0.45:1;
         const elemK=(pr.elem&&pr.elem!=='none')?(1-resReduce()):1;   // 抗性打折元素弹伤害
-        hurt(pr.dmg*reduce*elemK);
+        hurt(pr.dmg*reduce*elemK, {spell:(pr.elem&&pr.elem!=='none'), boss:pr.boss});
         applyElemToPlayer(pr.elem, pr.boss, pr.rar, now, pr.x, pr.y, pr.freezeMul);
         spawnParticles(pr.x,pr.y,pr.color,4); gone=true;
       }
+      // 也会命中宠物 / 其它玩家
+      if(!gone){ for(const pe of petEnts){ if(pe.hp<=0) continue; if(dist2(pr.x,pr.y,pe.x,pe.y)<(pr.r+pe.r)*(pr.r+pe.r)){ pe.hp-=pr.dmg; pe.hitFlash=0.12; spawnParticles(pr.x,pr.y,pr.color,3); gone=true; break; } } }
+      if(!gone){ for(const o of others){ if(o.dead) continue; if(dist2(pr.x,pr.y,o.x,o.y)<(pr.r+o.r)*(pr.r+o.r)){ o.hp-=pr.dmg; o.hitFlash=0.12; spawnParticles(pr.x,pr.y,pr.color,3); gone=true; break; } } }
     }
     if(gone){
       // 火系射弹消失处在地面留下一片燃烧区域
@@ -1317,7 +1442,7 @@ function update(dt, now){
         spawnParticles(pr.x,pr.y,'#ff7a2b',16); Sound.blast(); addShake(6);
         if(dist2(pr.x,pr.y,p.x,p.y)<(pr.boom+p.r)*(pr.boom+p.r)){
           const reduce=p.mode==='defense'?0.45:1;
-          hurt(pr.dmg*reduce*(1-resReduce()));
+          hurt(pr.dmg*reduce*(1-resReduce()), {spell:true, boss:pr.boss});
           applyElemToPlayer('fire', pr.boss, pr.rar, now, pr.x, pr.y);
         }
         for(const o of others){ if(o.dead) continue; if(dist2(pr.x,pr.y,o.x,o.y)<(pr.boom+o.r)*(pr.boom+o.r)) o.hp-=pr.dmg*0.5; }
@@ -1358,7 +1483,7 @@ function update(dt, now){
         if(dist2(p.x,p.y,hz.x,hz.y)<(hz.r+p.r)*(hz.r+p.r)){
           const reduce=p.mode==='defense'?0.45:1;
           const ek=hz.elem!=='none'?(1-resReduce()):1;   // 元素系灾害吃抗性打折（落石是物理不打折）
-          hurt(hz.dmg*reduce*ek);
+          hurt(hz.dmg*reduce*ek, {spell:hz.elem!=='none'});   // 物理灾害可被护甲挡，元素灾害穿透护甲
           applyElemToPlayer(hz.elem, true, curMap.rarBase||0, now, p.x, p.y);
         }
         hazards.splice(i,1);
@@ -1404,8 +1529,20 @@ function update(dt, now){
   updateHUD();
 }
 
-function fireProjectile(m, ad){
-  const a=Math.atan2(player.y-m.y, player.x-m.x);
+// 目标选择：宠物优先 → 攻击过它的实体(aggro) → 最近的玩家/其它玩家
+function mobTarget(m){
+  let best=null,bd=720*720;
+  for(const pe of petEnts){ if(pe.hp<=0) continue; const d2=dist2(m.x,m.y,pe.x,pe.y); if(d2<bd){bd=d2;best=pe;} }
+  if(best) return best;
+  if(m.aggro){ const e=m.aggro; const dead = e===player ? !running : (e.hp<=0||e.dead);
+    if(!dead && dist2(m.x,m.y,e.x,e.y)<1100*1100) return e; m.aggro=null; }
+  let tgt=player, td=dist2(m.x,m.y,player.x,player.y);
+  for(const o of others){ if(o.dead) continue; const d2=dist2(m.x,m.y,o.x,o.y); if(d2<td){td=d2;tgt=o;} }
+  return tgt;
+}
+function fireProjectile(m, ad, tx, ty){
+  if(tx==null){ tx=player.x; ty=player.y; }
+  const a=Math.atan2(ty-m.y, tx-m.x);
   const e=MOBS[m.type].elem||'none';
   const n=ad.burst||1; let dmg=ad.pdmg*mobDmgMult(m.rar)*(m.boss?1.8:1);
   if(e==='metal'){ dmg*=1.4; if(Math.random()<0.3) dmg*=2; }   // 金系穿刺更疼，30% 暴击双倍
@@ -1415,28 +1552,10 @@ function fireProjectile(m, ad){
   for(let i=0;i<n;i++){ const sp = fullRing ? a+i*spread : a+(i-(n-1)/2)*spread;
     projectiles.push({ x:m.x+Math.cos(sp)*m.r, y:m.y+Math.sin(sp)*m.r,
       vx:Math.cos(sp)*ad.pspeed, vy:Math.sin(sp)*ad.pspeed,
-      dmg, r:(ad.pr||6)*(m.boss?1.6:1), color:col, glow:ad.glow||e!=='none', life:2.4,
+      dmg, r:(ad.pr||6)*(m.boss?1.6:1), color:ad.bolt?'#fff36a':col, glow:ad.glow||e!=='none', life:2.4,
       elem:e, pierce:(e==='metal')||!!ad.pierce, boss:m.boss, rar:m.rar,
       boom:ad.boom||0, freezeMul:ad.freezeMul||1 }); }
-}
-// ⚡电灵：闪电必中玩家（不可躲），并连锁到附近其它玩家
-function fireBolt(m, ad){
-  const p=player, now=simNow;
-  lightnings.push({x1:m.x,y1:m.y,x2:p.x,y2:p.y,until:now+200});
-  const reduce=p.mode==='defense'?0.45:1;
-  const dmg=ad.dmg*mobDmgMult(m.rar);
-  hurt(dmg*reduce*(1-resReduce()));
-  applyElemToPlayer('wood', m.boss, m.rar, now, p.x, p.y);   // 闪电麻痹
-  Sound.crit(); addShake(7);
-  // 连锁：从玩家位置依次跳到最近的其它玩家
-  let src={x:p.x,y:p.y}, hops=ad.chain||3; const hit=new Set();
-  while(hops-->0){
-    let best=null, bd=ad.chainRange*ad.chainRange;
-    for(const o of others){ if(o.dead||hit.has(o)) continue; const d2=dist2(src.x,src.y,o.x,o.y); if(d2<bd){bd=d2;best=o;} }
-    if(!best) break;
-    hit.add(best); lightnings.push({x1:src.x,y1:src.y,x2:best.x,y2:best.y,until:now+200});
-    best.hp-=dmg*0.5; best.hitFlash=0.15; src={x:best.x,y:best.y};
-  }
+  if(ad.bolt) lightnings.push({x1:m.x,y1:m.y,x2:tx,y2:ty,until:simNow+150});   // ⚡电灵开火闪光
 }
 // 生物攻击力（含阶级、Boss 加成）
 function mobAtk(m){ return MOBS[m.type].dmg * mobDmgMult(m.rar) * (m.boss?1.8:1) * (m.grow||1); }
@@ -1529,7 +1648,14 @@ function pickupPetal(id, rar=0){
 }
 
 // ---------- 数值 ----------
-function hurt(a){ if(a<=0||!running)return; a*=(1-defReduce())*diffDmgMul(); player.hp-=a; player.hurtFlash=0.18;
+function hurt(a, opts){ if(a<=0||!running)return; a*=(1-defReduce())*diffDmgMul();
+  opts=opts||{};
+  // 护甲：非法术伤害 或 首领伤害 时优先消耗护甲值（非首领的法术伤害直接打血）
+  if(player.maxArmor>0 && player.armor>0 && (!opts.spell || opts.boss)){
+    const absorbed=Math.min(player.armor, a); player.armor-=absorbed; a-=absorbed;
+  }
+  if(a<=0){ player.hurtFlash=0.12; return; }
+  player.hp-=a; player.hurtFlash=0.18;
   floatPlayerDmg(a); if(a>=8){ Sound.hurt(); addShake(Math.min(10,3+a*0.04)); }
   if(player.hp<=0){player.hp=0; die();} }
 function heal(a){ player.hp=Math.min(player.maxHp,player.hp+a); }
@@ -1651,6 +1777,10 @@ function drawFlower(p,now){
     ctx.lineWidth = pet.rar===0 ? 2 : 2.5+pet.rar*0.5;
     ctx.beginPath(); ctx.arc(pet.x,pet.y,pet.r,0,7); ctx.stroke();
   }
+  // 护甲护盾：青色光环（厚度随当前护甲量）
+  if(p.maxArmor>0 && p.armor>0){ const k=clamp(p.armor/p.maxArmor,0,1);
+    ctx.strokeStyle='rgba(90,200,255,'+(0.35+0.45*k)+')'; ctx.lineWidth=2+4*k;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r+6,0,7); ctx.stroke(); }
   ctx.save(); ctx.translate(p.x,p.y);
   ctx.fillStyle=p.hurtFlash>0?'#ffd6d6':'#ffe27a'; ctx.strokeStyle='#caa53a'; ctx.lineWidth=4;
   ctx.beginPath(); ctx.arc(0,0,p.r,0,7); ctx.fill(); ctx.stroke();
@@ -2017,12 +2147,12 @@ function updateHUD(){
   if(now<p.stunUntil) st+=' ⚡眩晕'; if(now<p.slowUntil) st+=' ❄️减速'; if(p.poison&&now<p.poison.until) st+=' ☠️中毒';
   document.getElementById('pname').textContent=`${p.name||'小花'} · Lv.${p.level}${sp}${st}`;
   document.getElementById('hpfill').style.width=(p.hp/p.maxHp*100)+'%';
-  document.getElementById('hptext').textContent=`${Math.ceil(p.hp)} / ${p.maxHp}`;
+  document.getElementById('hptext').textContent=`${fmtBig(Math.ceil(p.hp))} / ${fmtBig(p.maxHp)}${p.maxArmor>0?'　🛡️'+fmtBig(Math.ceil(p.armor)):''}`;
   document.getElementById('xpfill').style.width=(p.xp/p.xpNext*100)+'%';
-  document.getElementById('xptext').textContent=`${Math.floor(p.xp)} / ${p.xpNext}`;
-  document.getElementById('score').textContent=`得分 ${p.score} · 击败 ${p.kills}`;
+  document.getElementById('xptext').textContent=`${fmtBig(Math.floor(p.xp))} / ${fmtBig(p.xpNext)}`;
+  document.getElementById('score').textContent=`得分 ${fmtBig(p.score)} · 击败 ${fmtBig(p.kills)}`;
   document.getElementById('biome').textContent=`${curMap.icon} ${curMap.name}`;
-  document.getElementById('hudgold').textContent=`🪙 ${p.gold}　💎 ${p.gems||0}`;
+  document.getElementById('hudgold').textContent=`🪙 ${fmtBig(p.gold)}　💎 ${fmtBig(p.gems||0)}`;
 }
 function renderSlots(){
   const box=document.getElementById('slots'); box.innerHTML='';
@@ -2054,22 +2184,64 @@ function openInventory(){
 function closeInventory(){ menuOpen=false; invEl.classList.remove('show'); }
 
 let invTab='bag';
-function setTab(tab){ invTab=tab; document.querySelectorAll('.invtab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab)); renderInventory(); }
+function setTab(tab){ if(tab!=='recombine') recombineSel=[]; invTab=tab; document.querySelectorAll('.invtab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab)); renderInventory(); }
+// ---- 重组机 ----
+let recombineSel=[];   // 已放入重组机的花瓣 [{id,rar}]
+function recombineSelCount(key){ let n=0; for(const s of recombineSel) if(pkey(s.id,s.rar)===key) n++; return n; }
+function renderRecombine(body){
+  const head=document.createElement('div'); head.className='sechead';
+  head.innerHTML=`🔧 已放入 <b style="color:#7af0ff">${recombineSel.length}</b> / 5 个花瓣`;
+  body.appendChild(head);
+  const btnrow=document.createElement('div'); btnrow.style.cssText='display:flex;gap:10px;justify-content:center;margin:6px 0 14px';
+  const go=document.createElement('button'); go.className='btn sbtn'; go.textContent='🔧 重组！'; go.disabled=recombineSel.length!==5; go.onclick=doRecombine;
+  const clr=document.createElement('button'); clr.className='btn sbtn danger'; clr.textContent='清空'; clr.onclick=()=>{ recombineSel=[]; renderInventory(); };
+  btnrow.appendChild(go); btnrow.appendChild(clr); body.appendChild(btnrow);
+  const grid=document.createElement('div'); grid.className='grid'; body.appendChild(grid);
+  const keys=Object.keys(player.inventory).filter(k=>player.inventory[k]>0);
+  if(!keys.length){ grid.innerHTML='<div class="empty-tip">背包里没有备用花瓣。打怪捡花瓣，或把装备的花瓣放回背包再来重组。</div>'; return; }
+  for(const k of keys){
+    const [id,rarS]=k.split('#'); const rar=+rarS; const t=petalById(id); const rc=RARITY[rar].color;
+    const have=player.inventory[k], sel=recombineSelCount(k), avail=have-sel;
+    const c=document.createElement('div'); c.className='pcard'; c.style.borderColor=rc;
+    c.innerHTML=`<div class="ptop">${dotHTML(t,rc)}<div class="pinfo"><b style="color:${rc}">${RARITY[rar].name}${t.name}</b>
+      <span class="cnt">剩 ${avail}${sel?` · 已放 ${sel}`:''}</span><br><span class="cstat">${petalStatLine(id,rar)}</span></div></div><div class="pacts"></div>`;
+    const b=document.createElement('button'); b.textContent='放入'; b.disabled=avail<=0||recombineSel.length>=5;
+    b.onclick=()=>{ if(recombineSel.length<5&&avail>0){ recombineSel.push({id,rar}); renderInventory(); } };
+    c.querySelector('.pacts').appendChild(b); grid.appendChild(c);
+  }
+}
+function doRecombine(){
+  if(recombineSel.length!==5) return;
+  for(const s of recombineSel){ const k=pkey(s.id,s.rar); player.inventory[k]=(player.inventory[k]||0)-1; if(player.inventory[k]<=0) delete player.inventory[k]; }
+  const avg=recombineSel.reduce((a,s)=>a+s.rar,0)/5;
+  let outRar; const roll=Math.random();
+  if(roll<0.01) outRar=28;          // 1% 真理（仅重组可得）
+  else if(roll<0.05) outRar=27;     // 4% 危险（仅重组可得）
+  else outRar=clamp(Math.round(avg+rand(-1,3)),0,26);   // 常规：受输入平均阶级影响，最高到「终极」
+  const pool=PETALS.filter(p=>!p.sig);
+  const out=pool[Math.floor(Math.random()*pool.length)];
+  recombineSel=[];
+  const k=pkey(out.id,outRar); player.inventory[k]=(player.inventory[k]||0)+1;
+  Sound.gem(); addShake(6);
+  showHint(`🔧 重组成功！获得【${RARITY[outRar].name}${out.name}】！（已放入背包）`);
+  recomputeStats(); updateBadge(); saveGame(); renderInventory();
+}
 function ownedKeysSorted(){
   return Object.keys(player.inventory).filter(k=>player.inventory[k]>0)
     .sort((a,b)=>{ const ra=+a.split('#')[1], rb=+b.split('#')[1]; return rb-ra || a.localeCompare(b); });
 }
-function petalStatLine(id,rar){ const probe={id,rar}; return `伤害 ${Math.round(pDmg(probe))} · 血量 ${pMaxHp(probe)} · 装填 ${pReload(probe).toFixed(2)}s`; }
+function petalStatLine(id,rar){ const probe={id,rar}; return `伤害 ${fmtBig(pDmg(probe))} · 血量 ${fmtBig(pMaxHp(probe))} · 装填 ${pReload(probe).toFixed(2)}s`; }
 function dotHTML(t,rc){ return `<div class="cdot" style="background:${t.color};box-shadow:inset 0 -4px 6px rgba(0,0,0,.25),0 0 0 3px ${rc}"></div>`; }
 
 function renderInventory(){
-  document.getElementById('invgold').textContent=`🪙 ${player.gold}　💎 ${player.gems||0}`;
+  document.getElementById('invgold').textContent=`🪙 ${fmtBig(player.gold)}　💎 ${fmtBig(player.gems||0)}`;
   const tip=document.getElementById('invtip'), body=document.getElementById('tabbody'); body.innerHTML='';
   if(invTab==='bag'){ tip.textContent='点空格子选位置 → 点"我的花瓣"装上；点已装备花瓣放回背包。攒 5 个同种同阶可【合成】高一阶！'; renderBag(body); }
   else if(invTab==='stat'){ tip.textContent='升级获得属性点，自由加在生命/攻击/防御/速度上，打造你的小花！'; renderStats(body); }
   else if(invTab==='pets'){ tip.textContent='打败 Boss 必掉蛋🥚，孵化成宠物跟你一起战斗！同一时间只能 1 只出战；倒下的宠物去商店买药剂治疗。'; renderPets(body); }
   else if(invTab==='shop'){ tip.textContent='用金币【购买】花瓣，或把多余花瓣【卖出】换金币。打怪也会获得金币。'; renderShop(body); }
   else if(invTab==='forge'){ tip.textContent='把不要的花瓣丢进熔炉【分解】，立刻获得经验值！阶级越高经验越多。'; renderForge(body); }
+  else if(invTab==='recombine'){ tip.textContent='放入 5 个花瓣 → 重组出 1 个随机种类、随机等级的花瓣！有几率得到只能在这里获得的「危险」「真理」花瓣。'; renderRecombine(body); }
   else if(invTab==='ach'){ tip.textContent='完成目标解锁成就，领取金币和宝石奖励！'; renderAch(body); }
   else { tip.textContent='生物图鉴：每种生物的属性、攻击方式与掉落详情。'; renderDex(body); }
 }
@@ -2111,7 +2283,7 @@ function renderBag(body){
     const c=document.createElement('div'); c.className='pcard'; c.style.borderColor=rc;
     c.innerHTML=`<div class="ptop">${dotHTML(t,rc)}<div class="pinfo"><b style="color:${rc}">${RARITY[pe.rar].name}${t.name}</b>
       <span class="cnt" style="color:#7af0ff">${'★'.repeat(st)}${'☆'.repeat(5-st)}</span><br>
-      <span class="cstat">${petalStatLine(pe.id,pe.rar).replace(/伤害 \d+/, '伤害 '+Math.round(pDmg(pe)))}</span><br>
+      <span class="cstat">伤害 ${fmtBig(pDmg(pe))} · 血量 ${fmtBig(pMaxHp(pe))} · 装填 ${pReload(pe).toFixed(2)}s</span><br>
       <span class="cfeat">每星全数值 +15%</span></div></div><div class="pacts"></div>`;
     const b=document.createElement('button'); b.className='b-gold';
     b.textContent = st>=5 ? '已满星 ★5' : `升星 ${cost}💎`;
@@ -2130,7 +2302,7 @@ function renderBag(body){
     c.innerHTML=`<div class="ptop">${dotHTML(t,rc)}<div class="pinfo"><b style="color:${rc}">${RARITY[rar].name}${t.name}</b><span class="cnt">×${cnt}</span><br><span class="cstat">${petalStatLine(id,rar)}</span></div></div><div class="pacts"></div>`;
     const acts=c.querySelector('.pacts');
     const eq=document.createElement('button'); eq.textContent='装备'; eq.onclick=()=>equipPetal(id,rar); acts.appendChild(eq);
-    const cb=document.createElement('button'); cb.className='b-gold'; cb.textContent=`合成(${cnt}/5)`; cb.disabled=(cnt<5||rar>=MAXRAR); cb.onclick=()=>combinePetal(id,rar); acts.appendChild(cb);
+    const cb=document.createElement('button'); cb.className='b-gold'; cb.textContent=`合成(${cnt}/5)`; cb.disabled=(cnt<5||rar>=CRAFT_MAX); cb.onclick=()=>combinePetal(id,rar); acts.appendChild(cb);
     const sb=document.createElement('button'); sb.className='b-sell'; sb.textContent=`卖 ${sellValue(id,rar)}🪙`; sb.onclick=()=>sellPetal(id,rar,false); acts.appendChild(sb);
     grid.appendChild(c);
   }
@@ -2167,7 +2339,7 @@ function renderPets(body){
     const t=MOBS[g.type], rc=RARITY[g.rar].color;
     const c=document.createElement('div'); c.className='pcard'; c.style.borderColor=rc;
     c.innerHTML=`<div class="ptop"><div class="cdot" style="background:#fff8e6;box-shadow:inset 0 -4px 6px rgba(0,0,0,.15),0 0 0 3px ${rc}"></div>
-      <div class="pinfo"><b style="color:${rc}">${RARITY[g.rar].name}${t.name}</b> 的蛋<span class="cnt">×${g.count}</span><br><span class="cstat">孵化后：血量 ${petMaxHp({type:g.type,rar:g.rar,level:1})} · 攻击 ${Math.round(petDmg({type:g.type,rar:g.rar,level:1}))}</span></div></div><div class="pacts"></div>`;
+      <div class="pinfo"><b style="color:${rc}">${RARITY[g.rar].name}${t.name}</b> 的蛋<span class="cnt">×${g.count}</span><br><span class="cstat">孵化后：血量 ${fmtBig(petMaxHp({type:g.type,rar:g.rar,level:1}))} · 攻击 ${fmtBig(petDmg({type:g.type,rar:g.rar,level:1}))}</span></div></div><div class="pacts"></div>`;
     const b=document.createElement('button'); b.textContent='🐣 孵化'; b.onclick=()=>hatchEggByKind(g.type,g.rar);
     c.querySelector('.pacts').appendChild(b); eg.appendChild(c);
   }
@@ -2182,7 +2354,7 @@ function renderPets(body){
     const c=document.createElement('div'); c.className='pcard'; c.style.borderColor=active?'#5dff7a':rc;
     c.innerHTML=`<div class="ptop"><div class="cdot" style="background:${t.color};box-shadow:inset 0 -4px 6px rgba(0,0,0,.25),0 0 0 3px ${rc}"></div>
       <div class="pinfo"><b style="color:${rc}">${petLabel(pt)}</b><span class="cnt">Lv.${pt.level}</span><br>
-      <span class="cstat">血量 ${pt.hp}/${pt.maxHp} · 攻击 ${Math.round(petDmg(pt))}</span><br><span class="cfeat">${status}</span></div></div><div class="pacts"></div>`;
+      <span class="cstat">血量 ${fmtBig(pt.hp)}/${fmtBig(pt.maxHp)} · 攻击 ${fmtBig(petDmg(pt))}</span><br><span class="cfeat">${status}</span></div></div><div class="pacts"></div>`;
     const acts=c.querySelector('.pacts');
     if(!pt.dead){
       const b=document.createElement('button'); b.textContent=active?'休息':'出战';
@@ -2322,9 +2494,11 @@ function unequip(idx){
   player.petals[idx]=null; selectedSlot=idx;
   recomputeStats(); renderSlots(); updateBadge(); renderInventory(); saveGame();
 }
+// 合成最高只到「终极」(26)；「危险」「真理」只能用重组机获得
+const CRAFT_MAX=26;
 // ---- 兑换 / 商店 / 熔炉 ----
 function combinePetal(id,rar){
-  if(rar>=MAXRAR) return;
+  if(rar>=CRAFT_MAX){ showHint('合成最高只能到「终极」，更高阶要用 🔧重组机！'); return; }
   const k=pkey(id,rar); if((player.inventory[k]||0)<5){ showHint('需要 5 个同种同阶花瓣才能合成'); return; }
   player.inventory[k]-=5; if(player.inventory[k]<=0) delete player.inventory[k];
   const nk=pkey(id,rar+1); player.inventory[nk]=(player.inventory[nk]||0)+1;
@@ -2454,7 +2628,7 @@ function continueGame(slot){
   while(player.petals.length<SLOT_COUNT) player.petals.push(null);
   player.petals.length=SLOT_COUNT;
   player.inventory=s.inventory||{};
-  recomputeStats(); player.hp=Math.min(player.maxHp, s.hp||player.maxHp);
+  recomputeStats(); player.hp=Math.min(player.maxHp, s.hp||player.maxHp); player.armor=player.maxArmor;
   drops=[]; particles=[]; projectiles=[]; firePatches=[]; blasts=[]; hazards=[]; floaters=[]; hazardTimer=rand(6,12); selectedSlot=null;
   const mapId=MAPS[s.map]?s.map:'garden';
   curMap=MAPS[mapId]; WORLD.w=curMap.w; WORLD.h=curMap.h;
@@ -2490,16 +2664,25 @@ function respawn(){     // 死亡后复活：保留花瓣/背包/等级/得分�
   document.getElementById('dead').classList.add('hidden');
   invEl.classList.remove('show'); paused=false; menuOpen=false;
   running=true; lastTime=performance.now();
-  if(lastDeathMap==='arena'){   // 竞技场阵亡：在竞技场门口（地狱侧大门旁）复活，方便再战
-    enterMap('hel', 'arena');
-    showHint('满血复活！就在竞技场门口，准备好再进去吧～');
-  } else {
-    enterMap('garden', null);
-    showHint('满血复活！花瓣和等级都还在～');
-  }
+  // 在所死亡地图的「入口」复活：找通往更低级地图的传送门作为入口落点
+  const dm = MAPS[lastDeathMap] ? lastDeathMap : 'garden';
+  let fromId=null, low=1e9;
+  for(const pt of MAPS[dm].portals){ const dest=MAPS[pt.to]; if(dest && dest.minLevel<(MAPS[dm].minLevel||1) && dest.minLevel<low){ low=dest.minLevel; fromId=pt.to; } }
+  enterMap(dm, fromId);
+  showHint(`满血复活！就在你倒下的【${MAPS[dm].name}】入口，继续加油～`);
   requestAnimationFrame(frame);
 }
 document.getElementById('respawnbtn').onclick=respawn;
+// 退出游戏：存档并回到首页
+function quitToMenu(){
+  if(running) saveGame();
+  running=false; paused=false; menuOpen=false;
+  invEl.classList.remove('show');
+  document.getElementById('dead').classList.add('hidden');
+  document.getElementById('start').classList.remove('hidden');
+  renderSlotMenu(); Sound.click();
+}
+document.getElementById('quitbtn').onclick=quitToMenu;
 
 // 关闭/切后台时存档
 addEventListener('beforeunload', ()=>{ if(running) saveGame(); });
